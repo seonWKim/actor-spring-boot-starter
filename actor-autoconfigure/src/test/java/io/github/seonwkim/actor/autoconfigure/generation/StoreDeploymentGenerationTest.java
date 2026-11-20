@@ -133,7 +133,7 @@ class StoreDeploymentGenerationTest {
         });
     }
 
-    private static final class MutableClock extends Clock {
+    static final class MutableClock extends Clock {
         private Instant now = Instant.parse("2026-11-11T00:00:00Z");
 
         void advance(Duration duration) {

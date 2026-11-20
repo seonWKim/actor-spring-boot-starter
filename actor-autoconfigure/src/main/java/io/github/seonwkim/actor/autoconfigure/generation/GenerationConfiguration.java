@@ -12,7 +12,9 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.util.Objects;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -38,6 +40,7 @@ public class GenerationConfiguration {
 
     static final String COLOR = "spring.actor.generation.color";
     static final String METER = "actor.generation.activations";
+    static final String WARMUP_INDICATOR = "actorWarmupHealthIndicator";
 
     @Bean
     @ConditionalOnProperty(name = COLOR)
@@ -93,9 +96,13 @@ public class GenerationConfiguration {
     @ConditionalOnProperty(name = COLOR)
     static class Endpoint {
 
+        /** Looks the warm-up indicator up by name: its class needs actor-cluster, which may be missing. */
         @Bean
-        GenerationEndpoint generationEndpoint(StoreDeploymentGeneration generation) {
-            return new GenerationEndpoint(generation);
+        GenerationEndpoint generationEndpoint(StoreDeploymentGeneration generation, BeanFactory beans) {
+            HealthIndicator warmup = beans.containsBean(WARMUP_INDICATOR)
+                    ? beans.getBean(WARMUP_INDICATOR, HealthIndicator.class)
+                    : null;
+            return new GenerationEndpoint(generation, warmup);
         }
 
         @Bean

@@ -30,7 +30,13 @@ public class StoreDeploymentGeneration implements DeploymentGeneration {
     private final Clock clock;
     private final ApplicationEventPublisher events;
 
-    private record Read(Optional<ActiveGeneration> active, Instant at) {}
+    /**
+     * A read of the active generation from the store.
+     *
+     * @param active the active generation, empty before the first activation
+     * @param at when it was read, on this node's clock
+     */
+    public record Read(Optional<ActiveGeneration> active, Instant at) {}
 
     @Nullable private volatile Read last;
 
@@ -61,8 +67,21 @@ public class StoreDeploymentGeneration implements DeploymentGeneration {
 
     @Override
     public Optional<ActiveGeneration> active() {
+        return current().active();
+    }
+
+    /**
+     * What this node reads now: the reused read while it is fresh, else a new read of the store. This is
+     * the generation that {@link #stamp()} and {@link #check} use.
+     */
+    public Read current() {
         Read read = last;
-        return read != null && clock.instant().isBefore(read.at().plus(refresh)) ? read.active() : activeNow();
+        if (read != null && clock.instant().isBefore(read.at().plus(refresh))) {
+            return read;
+        }
+        read = new Read(store.active(deployment), clock.instant());
+        last = read;
+        return read;
     }
 
     /** Reads the store now, and reuses the read from here on. */
@@ -70,6 +89,11 @@ public class StoreDeploymentGeneration implements DeploymentGeneration {
         Read read = new Read(store.active(deployment), clock.instant());
         last = read;
         return read.active();
+    }
+
+    /** Reads the store now without changing what this node reuses. */
+    public Optional<ActiveGeneration> activeInStore() {
+        return store.active(deployment);
     }
 
     @Override
