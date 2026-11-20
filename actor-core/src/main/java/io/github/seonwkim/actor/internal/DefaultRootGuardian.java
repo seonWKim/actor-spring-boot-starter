@@ -55,6 +55,7 @@ public class DefaultRootGuardian implements RootGuardian {
     private Behavior<Command> behavior() {
         return Behaviors.setup(ctx -> Behaviors.receive(Command.class)
                 .onMessage(SpawnActor.class, this::handleSpawnActor)
+                .onMessage(RecordSingleton.class, this::handleRecordSingleton)
                 .onMessage(GetActor.class, this::handleGetActor)
                 .onMessage(CheckExists.class, this::handleCheckExists)
                 .onMessage(CreateTopic.class, this::handleCreateTopicRaw)
@@ -109,6 +110,12 @@ public class DefaultRootGuardian implements RootGuardian {
             // that would terminate the actor system and leave every pending ask hanging.
             msg.replyTo.tell(Spawned.failed(e));
         }
+        return Behaviors.same();
+    }
+
+    /** Records a singleton proxy started outside the guardian, so {@code find} and {@code exists} see it. */
+    public Behavior<RootGuardian.Command> handleRecordSingleton(RecordSingleton msg) {
+        singletons.put(buildActorKey(msg.actorClass, msg.actorContext), msg.proxy);
         return Behaviors.same();
     }
 

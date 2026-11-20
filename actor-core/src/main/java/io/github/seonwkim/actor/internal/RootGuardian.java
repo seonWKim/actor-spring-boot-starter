@@ -105,6 +105,23 @@ public interface RootGuardian {
     }
 
     /**
+     * Records a cluster singleton proxy that was started outside the guardian (by {@code
+     * singletonHandle()}), so {@code find} and {@code exists} see it like one spawned through {@link
+     * SpawnActor}.
+     */
+    class RecordSingleton implements Command {
+        public final Class<?> actorClass;
+        public final SpringActorContext actorContext;
+        public final ActorRef<?> proxy;
+
+        public RecordSingleton(Class<?> actorClass, SpringActorContext actorContext, ActorRef<?> proxy) {
+            this.actorClass = actorClass;
+            this.actorContext = actorContext;
+            this.proxy = proxy;
+        }
+    }
+
+    /**
      * Command to get an existing actor reference by looking it up in the actor context.
      */
     class GetActor implements Command {

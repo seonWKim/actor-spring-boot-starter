@@ -44,6 +44,11 @@ public final class PekkoActorSystem implements SpringActorSystem, DisposableBean
         }
     }
 
+    private static final String SINGLETON_NEEDS_CLUSTER =
+            "Cluster singleton requested but cluster mode is not enabled. "
+                    + "Set spring.actor.provider=cluster and depend on "
+                    + "io.github.seonwkim:actor-spring-boot-starter-cluster.";
+
     private final AtomicBoolean shutdownStarted = new AtomicBoolean(false);
 
     private final ActorSystem<RootGuardian.Command> actorSystem;
@@ -189,10 +194,7 @@ public final class PekkoActorSystem implements SpringActorSystem, DisposableBean
 
         // If cluster singleton is requested, validate cluster mode
         if (isClusterSingleton && cluster == null) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("Cluster singleton requested but cluster mode is not enabled. "
-                            + "Set spring.actor.provider=cluster and depend on "
-                            + "io.github.seonwkim:actor-spring-boot-starter-cluster."));
+            return CompletableFuture.failedFuture(new IllegalStateException(SINGLETON_NEEDS_CLUSTER));
         }
 
         // On the caller's thread: a spawn from a bean constructor runs while Spring is still creating
@@ -231,6 +233,34 @@ public final class PekkoActorSystem implements SpringActorSystem, DisposableBean
                                     ? PekkoActorHandle.singleton(actorSystem, typedRef, defaultActorRefTimeout)
                                     : new PekkoActorHandle<>(actorSystem, typedRef, defaultActorRefTimeout));
                 });
+    }
+
+    /**
+     * Starts {@code actorClass} as a cluster singleton on the caller's thread and returns its handle at
+     * once: this node's proxy, which keeps messages until the singleton runs somewhere in the cluster.
+     */
+    public <A extends SpringActorWithContext<C, ?>, C> SpringActorHandle<C> singletonHandle(
+            Class<A> actorClass,
+            SpringActorContext actorContext,
+            MailboxConfig mailboxConfig,
+            DispatcherConfig dispatcherConfig,
+            TagsConfig tagsConfig,
+            @Nullable SupervisionStrategy supervisorStrategy) {
+        if (cluster == null) {
+            throw new IllegalStateException(SINGLETON_NEEDS_CLUSTER);
+        }
+        ActorTypeRegistry.of(actorSystem).resolve(actorClass);
+        ActorRef<C> proxy = ActorSpawner.spawnSingleton(
+                actorSystem,
+                actorClass,
+                actorContext,
+                ActorSpawner.buildActorName(actorClass, actorContext.actorId()),
+                supervisorStrategy,
+                mailboxConfig,
+                dispatcherConfig,
+                tagsConfig);
+        actorSystem.tell(new RootGuardian.RecordSingleton(actorClass, actorContext, proxy));
+        return PekkoActorHandle.singleton(actorSystem, proxy, defaultActorRefTimeout);
     }
 
     @Override
