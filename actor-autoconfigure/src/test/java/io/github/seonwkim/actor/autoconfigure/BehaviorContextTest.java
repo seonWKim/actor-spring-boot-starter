@@ -47,6 +47,13 @@ class BehaviorContextTest {
 
         public static class Log extends AskCommand<List<String>> implements Command {}
 
+        /** Never replies. */
+        public static class Silent extends AskCommand<String> implements Command {}
+
+        /** Asks {@code target} with {@code question} through askToSelf and logs the mapped outcome. */
+        public record AskOther(SpringActorHandle<Command> target, AskCommand<?> question, Duration timeout)
+                implements Command {}
+
         /** Replies with {@code ctx.actorId()}. */
         public static class ActorId extends AskCommand<String> implements Command {}
 
@@ -90,6 +97,18 @@ class BehaviorContextTest {
                     })
                     .onMessage(HasChild.class, (state, msg) -> {
                         msg.reply(state.ctx.getChild(ProbeActor.class, msg.id).isPresent());
+                        return SpringActorBehavior.same();
+                    })
+                    .onMessage(Silent.class, (state, msg) -> SpringActorBehavior.same())
+                    .onMessage(AskOther.class, (state, msg) -> {
+                        state.ctx.askToSelf(
+                                msg.target(),
+                                msg.question(),
+                                msg.timeout(),
+                                (reply, error) -> new Mark(
+                                        error == null
+                                                ? "reply:" + reply
+                                                : "error:" + error.getClass().getSimpleName()));
                         return SpringActorBehavior.same();
                     })
                     .onMessage(Log.class, (state, msg) -> {
@@ -247,6 +266,32 @@ class BehaviorContextTest {
 
             assertThat(ask(parent, new ProbeActor.HasChild("child-2"))).isTrue();
             assertThat(ask(parent, new ProbeActor.HasChild("someone-else"))).isFalse();
+        });
+    }
+
+    @Test
+    void askToSelfDeliversTheReplyAsAMessage() {
+        runner.run(context -> {
+            SpringActorHandle<ProbeActor.Command> asker = probe(context, "asker");
+            SpringActorHandle<ProbeActor.Command> answerer = probe(context, "answerer");
+
+            asker.tell(new ProbeActor.AskOther(answerer, new ProbeActor.ActorId(), Duration.ofSeconds(5)));
+
+            await().atMost(Duration.ofSeconds(5)).until(() -> log(asker).contains("reply:answerer"));
+        });
+    }
+
+    @Test
+    void askToSelfDeliversATimeoutAsAMessageAfterTheTimeout() {
+        runner.run(context -> {
+            SpringActorHandle<ProbeActor.Command> asker = probe(context, "impatient");
+            SpringActorHandle<ProbeActor.Command> silent = probe(context, "silent");
+            long start = System.nanoTime();
+
+            asker.tell(new ProbeActor.AskOther(silent, new ProbeActor.Silent(), Duration.ofMillis(300)));
+
+            await().atMost(Duration.ofSeconds(5)).until(() -> log(asker).contains("error:TimeoutException"));
+            assertThat(Duration.ofNanos(System.nanoTime() - start)).isGreaterThanOrEqualTo(Duration.ofMillis(300));
         });
     }
 }
