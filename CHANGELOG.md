@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Features
+
+- **A `DeploymentGeneration` without blue-green, and a handler that drops stale messages (#264).** Without
+  `spring.actor.generation.color`, the starter registers `DeploymentGeneration.none()`: always active,
+  `stamp()` returns 0 and `check()` never throws, so applications inject `DeploymentGeneration` directly
+  instead of through `ObjectProvider`. An application's own bean still replaces it. A message that
+  implements the new `GenerationStamped` (`long epoch()`) can be handled with
+  `generation.ifCurrent((ctx, msg) -> ...)`, which drops a message of an older epoch and logs a warning
+  instead of running the handler.
+
 ### Fixes
 
 - **`spring.actor.generation.*` stays out of the Pekko config (#254).** The `generation` keys were also passed

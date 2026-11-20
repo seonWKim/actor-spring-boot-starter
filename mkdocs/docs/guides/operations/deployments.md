@@ -212,15 +212,50 @@ user's name and the result. The starter also logs it (`INFO` when accepted, `WAR
 it in `actor.generation.activations`, tagged with `outcome`. A request that Spring Security turns away never
 reaches the endpoint, so it shows in Spring Security's events instead.
 
-**Fencing in your code.** Inject `DeploymentGeneration`. Stamp work with `stamp()` where it starts (it
-fails when this node's color is not active), and `check(epoch)` it where it runs. A stale epoch throws
-`StaleGenerationException`, the retryable outcome of [reliable delivery](../core/reliable-delivery.md#stale-generation-not-the-owner-yet-or-anymore):
+**Fencing in your code.** Inject `DeploymentGeneration`. Without `spring.actor.generation.color` the
+starter's bean is a no-op: always active, `stamp()` returns 0 and nothing is stale, so the same code runs
+with and without blue-green. Your own `DeploymentGeneration` bean replaces it.
+
+Stamp a message with `stamp()` where the work starts (it fails when this node's color is not active). A
+message that implements `GenerationStamped` (a record with an `epoch` component does) can be checked where
+it runs by wrapping its handler with `ifCurrent`: a message of an older epoch is dropped and logged as a
+warning on the actor's log, and the handler does not run.
 
 === "Java"
 
     ```java
-    long epoch = generation.stamp();                       // where the work starts
-    sender.send(new ChargeOrder(orderId, epoch), key);
+    record ChargeOrder(String orderId, long epoch) implements Command, GenerationStamped {}
+
+    orders.tell(new ChargeOrder(orderId, generation.stamp()));   // where the work starts
+
+    .onMessage(ChargeOrder.class, generation.ifCurrent((ctx, msg) -> {
+        payments.charge(msg.orderId());                         // only for the active epoch
+        return SpringActorBehavior.same();
+    }))
+    ```
+
+=== "Kotlin"
+
+    ```kotlin
+    data class ChargeOrder(val orderId: String, override val epoch: Long) : Command, GenerationStamped
+
+    orders.tell(ChargeOrder(orderId, generation.stamp()))       // where the work starts
+
+    .onMessage(ChargeOrder::class.java, generation.ifCurrent { _, msg ->
+        payments.charge(msg.orderId)                            // only for the active epoch
+        SpringActorBehavior.same()
+    })
+    ```
+
+The stamp is not added on send: messages are immutable, so the sender passes the epoch when it builds the
+message. With [reliable delivery](../core/reliable-delivery.md#stale-generation-not-the-owner-yet-or-anymore),
+call `check(epoch)` in the handler instead of `ifCurrent`. It throws `StaleGenerationException`, the
+retryable outcome, so the sender retries, while a dropped message would be acknowledged:
+
+=== "Java"
+
+    ```java
+    sender.send(new ChargeOrder(orderId, generation.stamp()), key);
 
     .onMessage(ChargeOrder.class, (ctx, msg) -> {
         generation.check(msg.epoch());                     // StaleGenerationException if it is old
@@ -232,8 +267,7 @@ fails when this node's color is not active), and `check(epoch)` it where it runs
 === "Kotlin"
 
     ```kotlin
-    val epoch = generation.stamp()                         // where the work starts
-    sender.send(ChargeOrder(orderId, epoch), key)
+    sender.send(ChargeOrder(orderId, generation.stamp()), key)
 
     .onMessage(ChargeOrder::class.java) { _, msg ->
         generation.check(msg.epoch)                        // StaleGenerationException if it is old

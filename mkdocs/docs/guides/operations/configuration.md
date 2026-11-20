@@ -144,7 +144,7 @@ See [The active generation](deployments.md#the-active-generation). Blue-green ac
 
 | Key | Default | Description |
 |---|---|---|
-| `spring.actor.generation.color` | none | This deployment's color, for example `blue` or `green`. Setting it turns on blue-green activation, `DeploymentGeneration` and the `generation` Actuator endpoint; each color runs with its own value. |
+| `spring.actor.generation.color` | none | This deployment's color, for example `blue` or `green`. Setting it turns on blue-green activation, the store-backed `DeploymentGeneration` and the `generation` Actuator endpoint; each color runs with its own value. Without it, `DeploymentGeneration` is a no-op that is always active. |
 | `spring.actor.generation.store` | none | Where the active generation is kept: `jdbc` (the `actor_generation` table, needs `actor-jdbc`), `redis` (needs `actor-redis`) or `custom` (your `GenerationStore` bean). |
 | `spring.actor.generation.name` | `spring.actor.name` | Name of the record both colors share in the store. |
 | `spring.actor.generation.refresh` | `1s` | How long a read of the active generation is reused before the store is read again: the longest a node takes to see an activation made elsewhere. `0` reads the store every time. Must not be negative. |
