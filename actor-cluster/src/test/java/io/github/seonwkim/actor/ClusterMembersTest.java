@@ -51,8 +51,7 @@ class ClusterMembersTest {
                     .untilAsserted(() -> assertThat(system.cluster().members())
                             .extracting(ClusterMember::address, ClusterMember::status)
                             .containsExactlyInAnyOrder(
-                                    tuple(self1.address(), MemberStatus.UP),
-                                    tuple(self2.address(), MemberStatus.UP)));
+                                    tuple(self1.address(), MemberStatus.UP), tuple(self2.address(), MemberStatus.UP)));
         }
 
         // The leader stays: a follower that leaves is removed at once, a leader only after downing.
