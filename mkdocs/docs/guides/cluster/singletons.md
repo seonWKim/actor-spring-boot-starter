@@ -165,6 +165,33 @@ Call `asClusterSingleton()` on the spawn builder:
 
 `asClusterSingleton(boolean)` does the same with a flag, for code that decides at run time.
 
+### A handle you can use at once
+
+`spawn()` returns a `CompletionStage`, so code that may run before it completes has to hold an
+`Optional` or wait. `singletonHandle()` starts the singleton the same way and returns the handle at once:
+
+=== "Java"
+
+    ```java
+    SpringActorHandle<ClusterMetricsAggregator.Command> aggregator = actorSystem
+            .actor(ClusterMetricsAggregator.class)
+            .withId("metrics-aggregator")
+            .singletonHandle();
+    ```
+
+=== "Kotlin"
+
+    ```kotlin
+    val aggregator: SpringActorHandle<ClusterMetricsAggregator.Command> = actorSystem
+        .actor<ClusterMetricsAggregator, _>()
+        .withId("metrics-aggregator")
+        .singletonHandle()
+    ```
+
+Messages sent through it before the singleton runs, for example before this node has joined the cluster,
+wait in the proxy and are delivered once the singleton starts (up to the proxy's buffer, see
+[Where it runs](#where-it-runs)). It throws `IllegalStateException` outside cluster mode.
+
 What you get back is a handle to a **proxy** on this node, not to the actor itself. The proxy finds the
 node that runs the singleton and forwards every message there. `tell` and `ask` work as on any handle.
 
