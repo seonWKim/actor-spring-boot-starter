@@ -17,6 +17,12 @@
   address. The cluster formation guide shows how to tell nodes apart with `spring.actor.cluster.roles`
   instead of their ports.
 
+- **The generation endpoint reports this node's view (#265).** `GET /actuator/generation` also returns
+  `node`: the generation this node reads now, when it read it from the store (`readAt`), whether its color
+  is active (`colorActive`) and whether the warm-up indicator is `UP` (`warm`, `null` outside cluster mode).
+  Reading the endpoint no longer refreshes the node's read, so a pipeline verifies a switch by polling each
+  node until all report the new epoch. The Kubernetes example's `blue-green.sh verify` does that.
+
 ### Fixes
 
 - **`spring.actor.generation.*` stays out of the Pekko config (#254).** The `generation` keys were also passed

@@ -95,7 +95,7 @@ A blue-green release runs in four stages. Each one waits for a signal before the
 |---|---|---|
 | 1. Warm up | `blue-green.sh deploy <image>` | every green pod answers `UP` on `/actuator/health/warmup`, then is ready |
 | 2. Activate | `blue-green.sh activate` | the [generation endpoint](#the-active-generation) accepts green; then the HTTP Service's selector picks the green pods |
-| 3. Verify | `blue-green.sh verify` | the generation record says green, and the Service's ready endpoints are exactly the green pods |
+| 3. Verify | `blue-green.sh verify` | the generation record says green, every pod of both colors reads its epoch (`node` in `GET /actuator/generation`), and the Service's ready endpoints are exactly the green pods |
 | 4. Retire | `blue-green.sh retire` | run it once green has served for a while; it deletes blue |
 
 ```bash
@@ -162,8 +162,8 @@ management:
       access: unrestricted   # activation is a write: read-only by default
 ```
 
-**The `generation` endpoint.** `GET /actuator/generation` returns this node's color and the active
-generation. `POST /actuator/generation` with `color`, `expectedEpoch` (0 before the first activation) and
+**The `generation` endpoint.** `GET /actuator/generation` returns this node's color, the active
+generation in the store (`active`) and what this node reads now (`node`). `POST /actuator/generation` with `color`, `expectedEpoch` (0 before the first activation) and
 `operationId` activates a color:
 
 ```bash
@@ -172,6 +172,28 @@ curl -u deployer:$PASSWORD -X POST localhost:8080/actuator/generation \
   -d '{"color":"green","expectedEpoch":1,"operationId":"release-2026-11-11-1"}'
 # {"outcome":"ACTIVATED","generation":{"color":"green","epoch":2,"operationId":"release-2026-11-11-1",...}}
 ```
+
+**Verifying a switch.** A node reuses its read of the record for `spring.actor.generation.refresh`, so
+after an activation each node keeps stamping and checking with the old epoch for up to that long. `node`
+says what this node reads now: the generation (`active`), when it read it from the store (`readAt`),
+whether its own color is the active one (`colorActive`) and whether it is warmed up (`warm`, from the
+`actorWarmup` health indicator; `null` outside cluster mode). Reading the endpoint does not refresh the
+node's read. A pipeline knows the switch is done when every node of both colors reports the new epoch:
+
+```bash
+curl -s localhost:8081/actuator/generation
+# {"deployment":"orders","color":"blue",
+#  "active":{"color":"green","epoch":2,...},
+#  "node":{"active":{"color":"blue","epoch":1,...},"readAt":"2026-11-11T10:00:00.250Z","colorActive":true,"warm":true}}
+
+# Every pod reads the record's epoch
+for pod in $PODS; do
+  [ "$(kubectl exec "$pod" -- curl -s localhost:8081/actuator/generation | jq '.node.active.epoch')" = 2 ] || echo "$pod lags"
+done
+```
+
+`blue-green.sh verify` does this for every running pod of both colors, and skips a pod whose answer has no
+`node` (a version of the starter without it).
 
 Activation needs an authenticated user: a request without one is answered `401` (`UNAUTHENTICATED`). Secure
 the endpoint with Spring Security like any other write endpoint, for example with a role:
