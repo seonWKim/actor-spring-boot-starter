@@ -14,16 +14,21 @@ import org.apache.pekko.serialization.SerializationExtension;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.test.annotation.DirtiesContext;
 
-/** Messages between nodes are written with the application's ObjectMapper (its modules and settings). */
-@SpringBootTest(classes = {ActorConfiguration.class, ApplicationObjectMapperSerializationTest.TestConfig.class})
+/**
+ * With spring.actor.serialization.application-object-mapper, messages between nodes are written with the
+ * application's ObjectMapper (its modules and settings).
+ */
+@SpringBootTest(
+        classes = {ActorConfiguration.class, ApplicationObjectMapperSerializationTest.TestConfig.class},
+        properties = "spring.actor.serialization.application-object-mapper=true")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ApplicationObjectMapperSerializationTest {
 
-    @Configuration
+    @TestConfiguration
     static class TestConfig {
         @Bean
         ObjectMapper objectMapper() {

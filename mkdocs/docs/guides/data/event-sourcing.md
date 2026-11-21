@@ -162,7 +162,10 @@ the actor's own context (`getSelf()`, `getLog()`, timers).
 Events and states are written to the database with Jackson. Implement `JsonSerializable` (or
 `CborSerializable`) from `io.github.seonwkim.actor.serialization` on your events and your state.
 Once events are stored, their JSON shape is a contract: add fields with defaults rather than renaming
-or removing them.
+or removing them. The starter writes them with its own Jackson mapper, so changing the application's
+`ObjectMapper` for the REST API leaves stored events readable. With
+`spring.actor.serialization.application-object-mapper: true` they use the application's mapper, and its
+settings become part of that contract.
 
 ## Tables
 
