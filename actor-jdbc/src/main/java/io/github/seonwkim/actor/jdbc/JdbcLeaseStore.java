@@ -5,7 +5,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -14,8 +13,10 @@ import javax.sql.DataSource;
  * A {@link LeaseStore} in the {@code actor_lease} table of the application's {@link DataSource}.
  * Each change is one conditional {@code UPDATE} (or the first {@code INSERT}), so the database
  * decides which of several concurrent acquirers wins. Expiry is measured on the database's clock:
- * each call reads {@code CURRENT_TIMESTAMP} and compares and extends {@code expires_at} with it,
- * so the nodes' clocks need not agree. The table is created from {@link JdbcPeerRegistry#SCHEMA_LOCATION}.
+ * each call reads the database's time and compares and extends {@code expires_at} (epoch
+ * milliseconds) with it, so the nodes' clocks and time zones need not agree. Each statement times out
+ * after {@link #QUERY_TIMEOUT_SECONDS}, so a locked row or a slow database fails the call instead of
+ * holding a lease thread. The table is created from {@link JdbcPeerRegistry#SCHEMA_LOCATION}.
  */
 public final class JdbcLeaseStore implements LeaseStore {
 
@@ -26,6 +27,9 @@ public final class JdbcLeaseStore implements LeaseStore {
             "UPDATE actor_lease SET expires_at = ? WHERE lease_name = ? AND owner = ? AND expires_at >= ?";
     private static final String RELEASE = "DELETE FROM actor_lease WHERE lease_name = ? AND owner = ?";
     private static final String HOLDER = "SELECT owner FROM actor_lease WHERE lease_name = ? AND expires_at >= ?";
+
+    /** How long one statement may run: well inside the lease's ttl and Pekko's operation timeout. */
+    static final int QUERY_TIMEOUT_SECONDS = 5;
 
     private final DataSource dataSource;
 
@@ -44,14 +48,14 @@ public final class JdbcLeaseStore implements LeaseStore {
 
     private static boolean acquire(Connection connection, String lease, String owner, Duration ttl)
             throws SQLException {
-        Timestamp now = Jdbc.now(connection);
-        Timestamp expires = plus(now, ttl);
+        long now = Jdbc.nowMillis(connection);
+        long expires = now + ttl.toMillis();
         if (take(connection, lease, owner, now, expires)) {
             return true;
         }
-        try (PreparedStatement insert = connection.prepareStatement(INSERT)) {
+        try (PreparedStatement insert = prepare(connection, INSERT)) {
             insert.setString(1, owner);
-            insert.setTimestamp(2, expires);
+            insert.setLong(2, expires);
             insert.setString(3, lease);
             return insert.executeUpdate() == 1;
         } catch (SQLException e) {
@@ -63,14 +67,14 @@ public final class JdbcLeaseStore implements LeaseStore {
         }
     }
 
-    private static boolean take(Connection connection, String lease, String owner, Timestamp now, Timestamp expires)
+    private static boolean take(Connection connection, String lease, String owner, long now, long expires)
             throws SQLException {
-        try (PreparedStatement take = connection.prepareStatement(TAKE)) {
+        try (PreparedStatement take = prepare(connection, TAKE)) {
             take.setString(1, owner);
-            take.setTimestamp(2, expires);
+            take.setLong(2, expires);
             take.setString(3, lease);
             take.setString(4, owner);
-            take.setTimestamp(5, now);
+            take.setLong(5, now);
             return take.executeUpdate() == 1;
         }
     }
@@ -79,12 +83,12 @@ public final class JdbcLeaseStore implements LeaseStore {
     public boolean renew(String lease, String owner, Duration ttl) {
         try {
             return Jdbc.withConnection(dataSource, connection -> {
-                Timestamp now = Jdbc.now(connection);
-                try (PreparedStatement renew = connection.prepareStatement(RENEW)) {
-                    renew.setTimestamp(1, plus(now, ttl));
+                long now = Jdbc.nowMillis(connection);
+                try (PreparedStatement renew = prepare(connection, RENEW)) {
+                    renew.setLong(1, now + ttl.toMillis());
                     renew.setString(2, lease);
                     renew.setString(3, owner);
-                    renew.setTimestamp(4, now);
+                    renew.setLong(4, now);
                     return renew.executeUpdate() == 1;
                 }
             });
@@ -97,7 +101,7 @@ public final class JdbcLeaseStore implements LeaseStore {
     public void release(String lease, String owner) {
         try {
             Jdbc.withConnection(dataSource, connection -> {
-                try (PreparedStatement release = connection.prepareStatement(RELEASE)) {
+                try (PreparedStatement release = prepare(connection, RELEASE)) {
                     release.setString(1, lease);
                     release.setString(2, owner);
                     return release.executeUpdate();
@@ -112,10 +116,10 @@ public final class JdbcLeaseStore implements LeaseStore {
     public Optional<String> holder(String lease) {
         try {
             return Jdbc.withConnection(dataSource, connection -> {
-                Timestamp now = Jdbc.now(connection);
-                try (PreparedStatement holder = connection.prepareStatement(HOLDER)) {
+                long now = Jdbc.nowMillis(connection);
+                try (PreparedStatement holder = prepare(connection, HOLDER)) {
                     holder.setString(1, lease);
-                    holder.setTimestamp(2, now);
+                    holder.setLong(2, now);
                     try (ResultSet row = holder.executeQuery()) {
                         return row.next() ? Optional.of(row.getString(1)) : Optional.<String>empty();
                     }
@@ -126,7 +130,9 @@ public final class JdbcLeaseStore implements LeaseStore {
         }
     }
 
-    private static Timestamp plus(Timestamp time, Duration duration) {
-        return Timestamp.from(time.toInstant().plus(duration));
+    private static PreparedStatement prepare(Connection connection, String sql) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement(sql);
+        statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
+        return statement;
     }
 }

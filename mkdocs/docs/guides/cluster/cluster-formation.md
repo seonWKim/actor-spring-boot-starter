@@ -90,13 +90,18 @@ CREATE TABLE IF NOT EXISTS actor_peer (
     node_id VARCHAR(500) NOT NULL,
     host VARCHAR(255) NOT NULL,
     port INT NOT NULL,
-    last_seen TIMESTAMP NOT NULL,
+    last_seen BIGINT NOT NULL,
     PRIMARY KEY (service_name, node_id)
 );
 ```
 
 A node that crashes leaves its row behind; it is ignored once it is older than the ttl, and you can delete
 old rows at any time.
+
+`last_seen` holds the database's time in epoch milliseconds, so nodes in different time zones compare it
+alike. Tables created before this version have `last_seen TIMESTAMP` (and `actor_lease.expires_at
+TIMESTAMP(3)`): stop the nodes, drop `actor_peer` and `actor_lease`, and let them be created again. Both
+hold only live entries, which the nodes write again within a heartbeat.
 
 ### Redis
 

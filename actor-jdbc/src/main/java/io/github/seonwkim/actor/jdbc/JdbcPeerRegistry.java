@@ -6,7 +6,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +13,7 @@ import javax.sql.DataSource;
 
 /**
  * A {@link PeerRegistry} in the {@code actor_peer} table of the application's {@link DataSource}.
- * Times come from the database's clock ({@code CURRENT_TIMESTAMP}), so the nodes' clocks need not
+ * Times come from the database's clock, in epoch milliseconds, so the nodes' clocks and time zones need not
  * agree. The statements are plain SQL that H2, PostgreSQL and MySQL all run; the table is created
  * from {@link #SCHEMA_LOCATION}, which also creates the {@code actor_lease} table of {@link JdbcLeaseStore} and the {@code actor_generation} table of {@link JdbcGenerationStore}.
  *
@@ -26,10 +25,10 @@ public final class JdbcPeerRegistry implements PeerRegistry {
     /** The module's schema files (actor_peer, actor_lease and actor_generation), one per database ({@code h2}, {@code postgresql}, {@code mysql}, {@code mariadb}). */
     public static final String SCHEMA_LOCATION = "classpath:io/github/seonwkim/actor/jdbc/schema-@@platform@@.sql";
 
-    private static final String UPDATE = "UPDATE actor_peer SET host = ?, port = ?, last_seen = CURRENT_TIMESTAMP"
-            + " WHERE service_name = ? AND node_id = ?";
-    private static final String INSERT = "INSERT INTO actor_peer (host, port, last_seen, service_name, node_id)"
-            + " VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?)";
+    private static final String UPDATE =
+            "UPDATE actor_peer SET host = ?, port = ?, last_seen = ?" + " WHERE service_name = ? AND node_id = ?";
+    private static final String INSERT =
+            "INSERT INTO actor_peer (host, port, last_seen, service_name, node_id)" + " VALUES (?, ?, ?, ?, ?)";
     private static final String DELETE = "DELETE FROM actor_peer WHERE service_name = ? AND node_id = ?";
     private static final String SELECT =
             "SELECT node_id, host, port FROM actor_peer WHERE service_name = ? AND last_seen >= ?";
@@ -44,17 +43,18 @@ public final class JdbcPeerRegistry implements PeerRegistry {
     public void register(Peer peer) {
         try {
             Jdbc.withConnection(dataSource, connection -> {
-                if (write(connection, UPDATE, peer) > 0) {
+                long now = Jdbc.nowMillis(connection);
+                if (write(connection, UPDATE, peer, now) > 0) {
                     return true;
                 }
                 try {
-                    write(connection, INSERT, peer);
+                    write(connection, INSERT, peer, now);
                 } catch (SQLException e) {
                     // Another writer inserted the same row since our update: update it instead.
                     if (!Jdbc.isDuplicateKey(e)) {
                         throw e;
                     }
-                    write(connection, UPDATE, peer);
+                    write(connection, UPDATE, peer, now);
                 }
                 return true;
             });
@@ -63,12 +63,13 @@ public final class JdbcPeerRegistry implements PeerRegistry {
         }
     }
 
-    private static int write(Connection connection, String sql, Peer peer) throws SQLException {
+    private static int write(Connection connection, String sql, Peer peer, long now) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, peer.host());
             statement.setInt(2, peer.port());
-            statement.setString(3, peer.service());
-            statement.setString(4, peer.id());
+            statement.setLong(3, now);
+            statement.setString(4, peer.service());
+            statement.setString(5, peer.id());
             return statement.executeUpdate();
         }
     }
@@ -92,11 +93,10 @@ public final class JdbcPeerRegistry implements PeerRegistry {
     public List<Peer> peers(String service, Duration ttl) {
         try {
             return Jdbc.withConnection(dataSource, connection -> {
-                Timestamp oldest =
-                        Timestamp.from(Jdbc.now(connection).toInstant().minus(ttl));
+                long oldest = Jdbc.nowMillis(connection) - ttl.toMillis();
                 try (PreparedStatement statement = connection.prepareStatement(SELECT)) {
                     statement.setString(1, service);
-                    statement.setTimestamp(2, oldest);
+                    statement.setLong(2, oldest);
                     try (ResultSet rows = statement.executeQuery()) {
                         List<Peer> peers = new ArrayList<>();
                         while (rows.next()) {
