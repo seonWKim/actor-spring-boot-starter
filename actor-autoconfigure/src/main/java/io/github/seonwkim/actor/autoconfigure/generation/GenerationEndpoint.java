@@ -9,9 +9,11 @@ import org.springframework.boot.actuate.endpoint.SecurityContext;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.annotation.WriteOperation;
+import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.actuate.health.Status;
 
 /**
- * The {@code generation} Actuator endpoint: reads the active generation, and activates a color with a
+ * The {@code generation} Actuator endpoint: reads the active generation and what this node reads, and activates a color with a
  * compare-and-set on the epoch. Reading is allowed by default; activating needs
  * {@code management.endpoint.generation.access=unrestricted} and an authenticated user (secure the
  * endpoint with Spring Security). An attempt without one is rejected with {@code UNAUTHENTICATED} and
@@ -25,9 +27,24 @@ public class GenerationEndpoint {
      *
      * @param deployment the deployment name
      * @param color this node's color
-     * @param active the active generation, null before the first activation
+     * @param active the active generation in the store, null before the first activation
+     * @param node what this node reads now
      */
-    public record Generation(String deployment, String color, @Nullable Active active) {}
+    public record Generation(String deployment, String color, @Nullable Active active, Node node) {}
+
+    /**
+     * This node's view. A node reuses a read of the store for {@code spring.actor.generation.refresh}, so
+     * after an activation its {@code active} lags the store's for up to that long: a pipeline knows a
+     * switch is done when every node reports the new epoch.
+     *
+     * @param active the generation this node reads now, the one it stamps and checks work with; null
+     *     before the first activation
+     * @param readAt when this node read it from the store (ISO-8601)
+     * @param colorActive whether this node's color is the active one in that read
+     * @param warm whether the {@code actorWarmup} health indicator is {@code UP}; null without one (not
+     *     in cluster mode)
+     */
+    public record Node(@Nullable Active active, String readAt, boolean colorActive, @Nullable Boolean warm) {}
 
     /**
      * A generation as JSON. {@code activatedAt} is an ISO-8601 string: Actuator's own JSON mapper may not
@@ -56,17 +73,36 @@ public class GenerationEndpoint {
 
     private final StoreDeploymentGeneration generation;
 
+    @Nullable private final HealthIndicator warmup;
+
     public GenerationEndpoint(StoreDeploymentGeneration generation) {
-        this.generation = generation;
+        this(generation, null);
     }
 
-    /** Reads the store, not the reused read. */
+    /** @param warmup the {@code actorWarmup} health indicator, null without one */
+    public GenerationEndpoint(StoreDeploymentGeneration generation, @Nullable HealthIndicator warmup) {
+        this.generation = generation;
+        this.warmup = warmup;
+    }
+
+    /**
+     * Reads the store for {@code active}, and this node's reused read for {@code node}. Reading does not
+     * refresh the node's read, so polling the endpoint does not hurry a node along.
+     */
     @ReadOperation
     public Generation read() {
+        StoreDeploymentGeneration.Read read = generation.current();
+        ActiveGeneration nodeActive = read.active().orElse(null);
+        Node node = new Node(
+                Active.of(nodeActive),
+                read.at().toString(),
+                nodeActive != null && nodeActive.color().equals(generation.color()),
+                warmup == null ? null : Status.UP.equals(warmup.health().getStatus()));
         return new Generation(
                 generation.deployment(),
                 generation.color(),
-                Active.of(generation.activeNow().orElse(null)));
+                Active.of(generation.activeInStore().orElse(null)),
+                node);
     }
 
     @WriteOperation
