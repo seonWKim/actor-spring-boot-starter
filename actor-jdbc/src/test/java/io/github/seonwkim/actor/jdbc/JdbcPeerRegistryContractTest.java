@@ -27,6 +27,16 @@ class JdbcPeerRegistryContractTest {
         }
     }
 
+    /** A pool set to auto-commit: false: every change must still be committed when the call returns. */
+    @Nested
+    @Testcontainers(disabledWithoutDocker = true)
+    class PostgreSqlWithoutAutoCommit extends PeerRegistryContract {
+        @Override
+        protected PeerRegistry registry() {
+            return new JdbcPeerRegistry(TestDatabases.withoutAutoCommit(TestDatabases.postgres()));
+        }
+    }
+
     @Nested
     @Testcontainers(disabledWithoutDocker = true)
     class MySql extends PeerRegistryContract {

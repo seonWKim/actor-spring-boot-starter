@@ -27,6 +27,16 @@ class JdbcGenerationStoreContractTest {
         }
     }
 
+    /** A pool set to auto-commit: false: every change must still be committed when the call returns. */
+    @Nested
+    @Testcontainers(disabledWithoutDocker = true)
+    class PostgreSqlWithoutAutoCommit extends GenerationStoreContract {
+        @Override
+        protected GenerationStore store() {
+            return new JdbcGenerationStore(TestDatabases.withoutAutoCommit(TestDatabases.postgres()));
+        }
+    }
+
     @Nested
     @Testcontainers(disabledWithoutDocker = true)
     class MySql extends GenerationStoreContract {

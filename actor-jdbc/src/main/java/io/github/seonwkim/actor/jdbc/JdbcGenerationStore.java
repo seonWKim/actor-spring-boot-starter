@@ -40,8 +40,8 @@ public final class JdbcGenerationStore implements GenerationStore {
 
     @Override
     public Optional<ActiveGeneration> active(String deployment) {
-        try (Connection connection = dataSource.getConnection()) {
-            return Optional.ofNullable(newest(connection, deployment));
+        try {
+            return Jdbc.withConnection(dataSource, connection -> Optional.ofNullable(newest(connection, deployment)));
         } catch (SQLException e) {
             throw new IllegalStateException("Could not read the active generation of " + deployment, e);
         }
@@ -49,40 +49,45 @@ public final class JdbcGenerationStore implements GenerationStore {
 
     @Override
     public ActivationResult activate(String deployment, String color, long expectedEpoch, String operationId) {
-        try (Connection connection = dataSource.getConnection()) {
-            ActivationResult done = byOperation(connection, deployment, color, expectedEpoch, operationId);
-            if (done != null) {
-                return done;
-            }
-            ActiveGeneration current = newest(connection, deployment);
-            if ((current == null ? 0 : current.epoch()) != expectedEpoch) {
-                return new ActivationResult(Outcome.EPOCH_MISMATCH, current);
-            }
-            ActiveGeneration next = new ActiveGeneration(
-                    color,
-                    expectedEpoch + 1,
-                    operationId,
-                    Instant.ofEpochMilli(Jdbc.now(connection).getTime()));
-            try (PreparedStatement insert = connection.prepareStatement(INSERT)) {
-                insert.setString(1, deployment);
-                insert.setString(2, color);
-                insert.setLong(3, next.epoch());
-                insert.setString(4, operationId);
-                insert.setLong(5, next.activatedAt().toEpochMilli());
-                insert.executeUpdate();
-                return new ActivationResult(Outcome.ACTIVATED, next);
-            } catch (SQLException e) {
-                if (!Jdbc.isDuplicateKey(e)) {
-                    throw e;
-                }
-                // Another activation took this epoch first, or the same operation did (a concurrent retry).
-                done = byOperation(connection, deployment, color, expectedEpoch, operationId);
-                return done != null
-                        ? done
-                        : new ActivationResult(Outcome.EPOCH_MISMATCH, newest(connection, deployment));
-            }
+        try {
+            return Jdbc.withConnection(
+                    dataSource, connection -> activate(connection, deployment, color, expectedEpoch, operationId));
         } catch (SQLException e) {
             throw new IllegalStateException("Could not activate " + color + " for " + deployment, e);
+        }
+    }
+
+    private static ActivationResult activate(
+            Connection connection, String deployment, String color, long expectedEpoch, String operationId)
+            throws SQLException {
+        ActivationResult done = byOperation(connection, deployment, color, expectedEpoch, operationId);
+        if (done != null) {
+            return done;
+        }
+        ActiveGeneration current = newest(connection, deployment);
+        if ((current == null ? 0 : current.epoch()) != expectedEpoch) {
+            return new ActivationResult(Outcome.EPOCH_MISMATCH, current);
+        }
+        ActiveGeneration next = new ActiveGeneration(
+                color,
+                expectedEpoch + 1,
+                operationId,
+                Instant.ofEpochMilli(Jdbc.now(connection).getTime()));
+        try (PreparedStatement insert = connection.prepareStatement(INSERT)) {
+            insert.setString(1, deployment);
+            insert.setString(2, color);
+            insert.setLong(3, next.epoch());
+            insert.setString(4, operationId);
+            insert.setLong(5, next.activatedAt().toEpochMilli());
+            insert.executeUpdate();
+            return new ActivationResult(Outcome.ACTIVATED, next);
+        } catch (SQLException e) {
+            if (!Jdbc.isDuplicateKey(e)) {
+                throw e;
+            }
+            // Another activation took this epoch first, or the same operation did (a concurrent retry).
+            done = byOperation(connection, deployment, color, expectedEpoch, operationId);
+            return done != null ? done : new ActivationResult(Outcome.EPOCH_MISMATCH, newest(connection, deployment));
         }
     }
 
