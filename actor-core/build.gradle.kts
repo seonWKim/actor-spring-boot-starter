@@ -29,6 +29,8 @@ dependencies {
     testFixturesImplementation("com.google.code.findbugs:jsr305:3.0.2")
     // AotHints: the registrars in aot.factories, for the native image hint tests.
     testFixturesImplementation("org.springframework:spring-core")
+    // TopicStats waits on Awaitility.
+    testFixturesImplementation("org.awaitility:awaitility")
 
     testImplementation(project(":actor-autoconfigure"))
     testImplementation("org.springframework.boot:spring-boot-starter-test")

@@ -31,6 +31,7 @@ class MailboxModuleIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        SlowActor.release = new CountDownLatch(1);
         // Create test metrics backend
         metricsBackend = new TestMetricsBackend();
 
@@ -65,6 +66,7 @@ class MailboxModuleIntegrationTest {
 
     @AfterEach
     void tearDown() throws Exception {
+        SlowActor.release.countDown();
         if (actorSystem != null) {
             actorSystem.terminate();
             Await.result(actorSystem.whenTerminated(), Duration.apply(5, TimeUnit.SECONDS));
@@ -97,7 +99,7 @@ class MailboxModuleIntegrationTest {
     void testMailboxSizeMaxCapturesPeak() throws Exception {
         ActorRef actor = actorSystem.actorOf(Props.create(SlowActor.class), "max-actor");
 
-        // Send many messages so mailbox queues up (slow actor processes one every 500ms)
+        // Send many messages so the mailbox queues up behind the first, which the actor holds
         for (int i = 0; i < 10; i++) {
             actor.tell(new TestMessage("msg" + i), ActorRef.noSender());
         }
@@ -214,6 +216,7 @@ class MailboxModuleIntegrationTest {
                                 "Overflow counter should increment when bounded mailbox full, got: %d", overflowCount));
             });
         } finally {
+            SlowActor.release.countDown();
             overflowSystem.terminate();
             Await.result(overflowSystem.whenTerminated(), Duration.apply(5, TimeUnit.SECONDS));
         }
@@ -233,14 +236,14 @@ class MailboxModuleIntegrationTest {
 
     // Test actors
 
+    /** Holds its first message until the test releases it, so the messages after it queue up. */
     public static class SlowActor extends AbstractActor {
+        static volatile CountDownLatch release = new CountDownLatch(1);
+
         @Override
         public Receive createReceive() {
             return receiveBuilder()
-                    .match(TestMessage.class, msg -> {
-                        // Simulate slow processing
-                        Thread.sleep(500);
-                    })
+                    .match(TestMessage.class, msg -> release.await())
                     .build();
         }
     }

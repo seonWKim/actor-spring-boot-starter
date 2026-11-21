@@ -80,9 +80,6 @@ class ActorLifecycleModuleIntegrationTest {
 
     @Test
     void testActorCreationIncrementsCounter() throws Exception {
-        // Wait a bit for system to stabilize
-        Thread.sleep(200);
-
         // Get initial counter value
         double initialCreated = metricsBackend.getCounterValue("actor.lifecycle.created");
 
@@ -105,9 +102,6 @@ class ActorLifecycleModuleIntegrationTest {
 
     @Test
     void testActiveActorsGaugeIncrements() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         // Get initial active count
         double initialActive = metricsBackend.getGaugeValue("actor.lifecycle.active");
 
@@ -141,9 +135,6 @@ class ActorLifecycleModuleIntegrationTest {
 
     @Test
     void testActorTerminationIncrementsCounterAndDecrementsGauge() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         double initialTerminated = metricsBackend.getCounterValue("actor.lifecycle.terminated");
         double initialActive = metricsBackend.getGaugeValue("actor.lifecycle.active");
 
@@ -184,9 +175,6 @@ class ActorLifecycleModuleIntegrationTest {
 
     @Test
     void testMultipleActorsLifecycle() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         double initialCreated = metricsBackend.getCounterValue("actor.lifecycle.created");
         double initialActive = metricsBackend.getGaugeValue("actor.lifecycle.active");
 
@@ -236,8 +224,6 @@ class ActorLifecycleModuleIntegrationTest {
 
     @Test
     void testResumeCounterIncrementsOnSupervisedFailureWithResumeStrategy() throws Exception {
-        Thread.sleep(200);
-
         double initialResumes = metricsBackend.getCounterValue("actor.lifecycle.resumes");
 
         ActorRef supervisor =
@@ -259,8 +245,6 @@ class ActorLifecycleModuleIntegrationTest {
     void testRestartCounterIncrementsOnSupervisedFailure() throws Exception {
         // Use Classic API: supervisor with Restart strategy, child that throws.
         // When child throws, Pekko calls faultRecreate on the child's ActorCell.
-        Thread.sleep(200);
-
         double initialRestarts = metricsBackend.getCounterValue("actor.lifecycle.restarts");
 
         ActorRef supervisor =
@@ -343,9 +327,6 @@ class ActorLifecycleModuleIntegrationTest {
 
     @Test
     void testActorMetricsWithTags() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         // Create actor with specific name
         String actorName = "tagged-actor";
         ActorRef actor = actorSystem.actorOf(Props.create(TestActor.class), actorName);
@@ -369,9 +350,6 @@ class ActorLifecycleModuleIntegrationTest {
                 org.apache.pekko.actor.typed.ActorSystem.create(guardianBehavior(), "typed-test-system");
 
         try {
-            // Wait for system to stabilize
-            Thread.sleep(200);
-
             double initialCreated = metricsBackend.getCounterValue("actor.lifecycle.created");
             double initialActive = metricsBackend.getGaugeValue("actor.lifecycle.active");
 

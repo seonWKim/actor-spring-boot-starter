@@ -64,8 +64,6 @@ class SystemMetricsModuleIntegrationTest {
 
     @Test
     void testUnhandledMessageCounterIncrementsWhenActorDoesNotHandleMessageType() throws Exception {
-        Thread.sleep(200);
-
         double initialUnhandled = metricsBackend.getCounterValue("system.unhandled-messages");
 
         // Actor that only handles String, not Integer
@@ -85,8 +83,6 @@ class SystemMetricsModuleIntegrationTest {
 
     @Test
     void testDeadLetterCounterIncrementsWhenSendingToTerminatedActor() throws Exception {
-        Thread.sleep(200);
-
         double initialDeadLetters = metricsBackend.getCounterValue("system.dead-letters");
 
         // Create actor, stop it, then send message -> dead letter

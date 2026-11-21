@@ -1,11 +1,13 @@
 package io.github.seonwkim.actor;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
 import io.github.seonwkim.actor.autoconfigure.ActorConfiguration;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletionStage;
 import org.junit.jupiter.api.AfterEach;
@@ -223,43 +225,38 @@ public class MdcIntegrationTest {
     }
 
     private void verifyMdcInLogs(String actorPath, Map<String, String> expectedMdcValues) {
-        // Wait a bit for logs to be written
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            List<ILoggingEvent> events = logAppender.getEvents();
+            boolean foundMatchingLog = false;
 
-        List<ILoggingEvent> events = logAppender.getEvents();
-        boolean foundMatchingLog = false;
+            for (ILoggingEvent event : events) {
+                Map<String, String> mdc = event.getMDCPropertyMap();
+                String pekkoSource = mdc.get("pekkoSource");
 
-        for (ILoggingEvent event : events) {
-            Map<String, String> mdc = event.getMDCPropertyMap();
-            String pekkoSource = mdc.get("pekkoSource");
+                if (pekkoSource != null && pekkoSource.contains(actorPath)) {
+                    // Verify all expected MDC values are present
+                    boolean allMatch = true;
+                    for (Map.Entry<String, String> expected : expectedMdcValues.entrySet()) {
+                        String actualValue = mdc.get(expected.getKey());
+                        if (actualValue == null || !actualValue.equals(expected.getValue())) {
+                            allMatch = false;
+                            break;
+                        }
+                    }
 
-            if (pekkoSource != null && pekkoSource.contains(actorPath)) {
-                // Verify all expected MDC values are present
-                boolean allMatch = true;
-                for (Map.Entry<String, String> expected : expectedMdcValues.entrySet()) {
-                    String actualValue = mdc.get(expected.getKey());
-                    if (actualValue == null || !actualValue.equals(expected.getValue())) {
-                        allMatch = false;
+                    if (allMatch) {
+                        foundMatchingLog = true;
                         break;
                     }
                 }
-
-                if (allMatch) {
-                    foundMatchingLog = true;
-                    break;
-                }
             }
-        }
 
-        assertTrue(
-                foundMatchingLog,
-                String.format(
-                        "No log entry found with expected MDC values %s for actor %s. Total log events: %d",
-                        expectedMdcValues, actorPath, events.size()));
+            assertTrue(
+                    foundMatchingLog,
+                    String.format(
+                            "No log entry found with expected MDC values %s for actor %s. Total log events: %d",
+                            expectedMdcValues, actorPath, events.size()));
+        });
     }
 
     @Test
@@ -343,30 +340,29 @@ public class MdcIntegrationTest {
         assertNotNull(response);
         assertTrue(response.actorPath.contains("combined-mdc-actor"));
 
-        // Wait a bit for logs
-        Thread.sleep(100);
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            // Verify both static and dynamic MDC values appear in logs
+            List<ILoggingEvent> events = logAppender.getEvents();
+            boolean foundWithBoth = false;
 
-        // Verify both static and dynamic MDC values appear in logs
-        List<ILoggingEvent> events = logAppender.getEvents();
-        boolean foundWithBoth = false;
+            for (ILoggingEvent event : events) {
+                Map<String, String> mdc = event.getMDCPropertyMap();
+                String pekkoSource = mdc.get("pekkoSource");
 
-        for (ILoggingEvent event : events) {
-            Map<String, String> mdc = event.getMDCPropertyMap();
-            String pekkoSource = mdc.get("pekkoSource");
-
-            if (pekkoSource != null && pekkoSource.contains("combined-mdc-actor")) {
-                // Check for both static and dynamic values
-                if ("user-789".equals(mdc.get("userId"))
-                        && "payment-service".equals(mdc.get("service"))
-                        && "msg-combined-456".equals(mdc.get("messageId"))
-                        && mdc.get("timestamp") != null) {
-                    foundWithBoth = true;
-                    break;
+                if (pekkoSource != null && pekkoSource.contains("combined-mdc-actor")) {
+                    // Check for both static and dynamic values
+                    if ("user-789".equals(mdc.get("userId"))
+                            && "payment-service".equals(mdc.get("service"))
+                            && "msg-combined-456".equals(mdc.get("messageId"))
+                            && mdc.get("timestamp") != null) {
+                        foundWithBoth = true;
+                        break;
+                    }
                 }
             }
-        }
 
-        assertTrue(foundWithBoth, "Log entry should contain both static and dynamic MDC values");
+            assertTrue(foundWithBoth, "Log entry should contain both static and dynamic MDC values");
+        });
     }
 
     @Test
@@ -410,55 +406,56 @@ public class MdcIntegrationTest {
         assertNotNull(childResponse);
         assertTrue(childResponse.actorPath.contains("child-with-mdc"));
 
-        // Wait for logs
-        Thread.sleep(200);
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            List<ILoggingEvent> events = logAppender.getEvents();
 
-        List<ILoggingEvent> events = logAppender.getEvents();
+            // Verify parent's MDC contains only parent values (no child values)
+            boolean foundParentLog = false;
+            for (ILoggingEvent event : events) {
+                Map<String, String> mdc = event.getMDCPropertyMap();
+                String pekkoSource = mdc.get("pekkoSource");
 
-        // Verify parent's MDC contains only parent values (no child values)
-        boolean foundParentLog = false;
-        for (ILoggingEvent event : events) {
-            Map<String, String> mdc = event.getMDCPropertyMap();
-            String pekkoSource = mdc.get("pekkoSource");
-
-            if (pekkoSource != null && pekkoSource.contains("parent-with-mdc")) {
-                // Parent should have its own static MDC
-                if ("parent-1".equals(mdc.get("parentId")) && "session-abc".equals(mdc.get("sessionId"))) {
-                    // Ensure child's MDC does NOT leak into parent
-                    assertNull(mdc.get("childId"), "Parent should not have child's MDC");
-                    assertNull(mdc.get("role"), "Parent should not have child's MDC");
-                    assertNull(mdc.get("dynamicMessageId"), "Parent should not have child's dynamic MDC");
-                    foundParentLog = true;
-                    break;
+                if (pekkoSource != null && pekkoSource.contains("parent-with-mdc")) {
+                    // Parent should have its own static MDC
+                    if ("parent-1".equals(mdc.get("parentId")) && "session-abc".equals(mdc.get("sessionId"))) {
+                        // Ensure child's MDC does NOT leak into parent
+                        assertNull(mdc.get("childId"), "Parent should not have child's MDC");
+                        assertNull(mdc.get("role"), "Parent should not have child's MDC");
+                        assertNull(mdc.get("dynamicMessageId"), "Parent should not have child's dynamic MDC");
+                        foundParentLog = true;
+                        break;
+                    }
                 }
             }
-        }
-        assertTrue(foundParentLog, "Should find parent log with parent's MDC");
+            assertTrue(foundParentLog, "Should find parent log with parent's MDC");
 
-        // Verify child's MDC contains child's static MDC + dynamic MDC (no parent values)
-        boolean foundChildLog = false;
-        for (ILoggingEvent event : events) {
-            Map<String, String> mdc = event.getMDCPropertyMap();
-            String pekkoSource = mdc.get("pekkoSource");
+            // Verify child's MDC contains child's static MDC + dynamic MDC (no parent values)
+            boolean foundChildLog = false;
+            for (ILoggingEvent event : events) {
+                Map<String, String> mdc = event.getMDCPropertyMap();
+                String pekkoSource = mdc.get("pekkoSource");
 
-            if (pekkoSource != null && pekkoSource.contains("child-with-mdc")) {
-                // Child should have its own static MDC
-                if ("child-1".equals(mdc.get("childId")) && "worker".equals(mdc.get("role"))) {
-                    // Child should also have dynamic MDC
-                    assertEquals(
-                            "msg-child-1", mdc.get("dynamicMessageId"), "Child should have dynamic MDC from message");
-                    assertNotNull(mdc.get("dynamicTimestamp"), "Child should have dynamic timestamp");
+                if (pekkoSource != null && pekkoSource.contains("child-with-mdc")) {
+                    // Child should have its own static MDC
+                    if ("child-1".equals(mdc.get("childId")) && "worker".equals(mdc.get("role"))) {
+                        // Child should also have dynamic MDC
+                        assertEquals(
+                                "msg-child-1",
+                                mdc.get("dynamicMessageId"),
+                                "Child should have dynamic MDC from message");
+                        assertNotNull(mdc.get("dynamicTimestamp"), "Child should have dynamic timestamp");
 
-                    // Ensure parent's MDC does NOT leak into child
-                    assertNull(mdc.get("parentId"), "Child should not inherit parent's MDC");
-                    assertNull(mdc.get("sessionId"), "Child should not inherit parent's MDC");
+                        // Ensure parent's MDC does NOT leak into child
+                        assertNull(mdc.get("parentId"), "Child should not inherit parent's MDC");
+                        assertNull(mdc.get("sessionId"), "Child should not inherit parent's MDC");
 
-                    foundChildLog = true;
-                    break;
+                        foundChildLog = true;
+                        break;
+                    }
                 }
             }
-        }
-        assertTrue(foundChildLog, "Should find child log with child's static and dynamic MDC");
+            assertTrue(foundChildLog, "Should find child log with child's static and dynamic MDC");
+        });
     }
 
     @Test
