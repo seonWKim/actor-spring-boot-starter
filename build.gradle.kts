@@ -11,7 +11,7 @@ plugins {
     id("com.diffplug.spotless") version "8.11.0"
     id("com.vanniktech.maven.publish") version "0.31.0" apply false
     id("net.ltgt.errorprone") version "5.2.0"
-    id("org.springframework.boot") version "3.5.16" apply false
+    id("org.springframework.boot") version "4.1.2" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
     // Native image builds: applied only by the scheduled smoke test (.github/workflows/native-image.yml).
     id("org.graalvm.buildtools.native") version "1.1.18" apply false
