@@ -1,9 +1,77 @@
+---
+title: Actor Spring Boot Starter
+description: The actor model for Spring Boot, on Apache Pekko. Actors are Spring beans.
+hide:
+  - navigation
+  - toc
+---
+
+<div class="asb-hero" markdown>
+<div class="asb-hero__pitch" markdown>
+<div class="asb-hero__title" markdown>
+
+![](assets/brand/mark.svg#only-light){ .asb-hero__mark }
+![](assets/brand/mark-dark.svg#only-dark){ .asb-hero__mark }
+
 # Actor Spring Boot Starter
 
+</div>
+
 The actor model for Spring Boot, on [Apache Pekko](https://pekko.apache.org/) (the open-source fork of Akka).
+{ .asb-hero__lead }
 
 Actors are Spring beans. You spawn them, send them messages, and scale them across a cluster, and the API
 you compile against has no Pekko types.
+
+Java 21+ · Spring Boot 3.5+ · Apache 2.0
+{ .asb-hero__meta }
+
+[Get started](getting-started.md){ .md-button .md-button--primary }
+[Browse the guides](guides/core/actors.md){ .md-button }
+
+</div>
+<div class="asb-hero__code" markdown>
+
+=== "Gradle"
+
+    ```groovy
+    implementation 'io.github.seonwkim:actor-spring-boot-starter:1.0.0'
+    ```
+
+=== "Maven"
+
+    ```xml
+    <dependency>
+      <groupId>io.github.seonwkim</groupId>
+      <artifactId>actor-spring-boot-starter</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+    ```
+
+```java title="GreeterActor.java"
+@Component
+public class GreeterActor implements SpringActor<GreeterActor.Command> {
+    public interface Command {}
+
+    public static class Greet extends AskCommand<String> implements Command {
+        public final String name;
+        public Greet(String name) { this.name = name; }
+    }
+
+    @Override
+    public SpringActorBehavior<Command> create(SpringActorContext actorContext) {
+        return SpringActorBehavior.builder(Command.class, actorContext)
+                .onMessage(Greet.class, (ctx, msg) -> {
+                    msg.reply("Hello, " + msg.name + "!");
+                    return SpringActorBehavior.same();
+                })
+                .build();
+    }
+}
+```
+
+</div>
+</div>
 
 ## Why actors in a Spring application
 
@@ -20,16 +88,96 @@ and event sourcing brings an actor's state back after a restart.
 
 ## What you get
 
-| Area | What's included | Start here |
-|---|---|---|
-| Core | Actors as beans, tell and ask, supervision, timers, routers, pub/sub topics, receptionist, dispatchers, logging with actor context | [Actors](guides/core/actors.md) |
-| Cluster | Sharding, singletons, replicated data, split brain resolver and leases; join through seed nodes, Kubernetes, a database or Redis | [Sharded actors](guides/cluster/sharded-actors.md) |
-| Data | Actor state in your database, event-sourced actors, projections into Spring Data or Kafka | [State in a database](guides/data/state-in-a-database.md) |
-| Streaming | Reactor `Mono`/`Flux`, SSE, WebSocket and gRPC | [Reactor streams](guides/streaming/reactor-streams.md) |
-| Operations | Graceful shutdown, Actuator health, metrics, tracing, dashboards, rolling/canary/blue-green deployments | [Running in production](guides/operations/production.md) |
-| Kotlin | `suspend` ask and spawn, reified helpers | [Kotlin](guides/kotlin.md) |
-| Testing | `@ActorTest` slice, multi-node cluster helpers | [Testing](guides/testing.md) |
-| AI agents | Agents as sharded actors with tools, streaming and approvals | [AI agents](guides/ai-agents.md) |
+<div class="asb-grid" markdown>
+<div class="asb-card" markdown>
+
+**Core**
+{ .asb-card__title }
+
+Actors as beans, tell and ask, supervision, timers, routers, pub/sub topics, receptionist, dispatchers, logging with actor context
+
+[Actors](guides/core/actors.md)
+{ .asb-card__link }
+
+</div>
+<div class="asb-card" markdown>
+
+**Cluster**
+{ .asb-card__title }
+
+Sharding, singletons, replicated data, split brain resolver and leases; join through seed nodes, Kubernetes, a database or Redis
+
+[Sharded actors](guides/cluster/sharded-actors.md)
+{ .asb-card__link }
+
+</div>
+<div class="asb-card" markdown>
+
+**Data**
+{ .asb-card__title }
+
+Actor state in your database, event-sourced actors, projections into Spring Data or Kafka
+
+[State in a database](guides/data/state-in-a-database.md)
+{ .asb-card__link }
+
+</div>
+<div class="asb-card" markdown>
+
+**Streaming**
+{ .asb-card__title }
+
+Reactor `Mono`/`Flux`, SSE, WebSocket and gRPC
+
+[Reactor streams](guides/streaming/reactor-streams.md)
+{ .asb-card__link }
+
+</div>
+<div class="asb-card" markdown>
+
+**Operations**
+{ .asb-card__title }
+
+Graceful shutdown, Actuator health, metrics, tracing, dashboards, rolling/canary/blue-green deployments
+
+[Running in production](guides/operations/production.md)
+{ .asb-card__link }
+
+</div>
+<div class="asb-card" markdown>
+
+**Kotlin**
+{ .asb-card__title }
+
+`suspend` ask and spawn, reified helpers
+
+[Kotlin](guides/kotlin.md)
+{ .asb-card__link }
+
+</div>
+<div class="asb-card" markdown>
+
+**Testing**
+{ .asb-card__title }
+
+`@ActorTest` slice, multi-node cluster helpers
+
+[Testing](guides/testing.md)
+{ .asb-card__link }
+
+</div>
+<div class="asb-card" markdown>
+
+**AI agents**
+{ .asb-card__title }
+
+Agents as sharded actors with tools, streaming and approvals
+
+[AI agents](guides/ai-agents.md)
+{ .asb-card__link }
+
+</div>
+</div>
 
 ## Modules
 

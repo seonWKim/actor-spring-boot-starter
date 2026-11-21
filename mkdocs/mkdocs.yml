@@ -5,23 +5,62 @@ repo_name: GitHub
 edit_uri: edit/main/mkdocs/docs/
 theme:
   name: material
+  custom_dir: overrides
+  logo: assets/brand/mark-small.svg
+  favicon: assets/brand/favicon.svg
+  font:
+    text: Inter
+    code: JetBrains Mono
   palette:
-    primary: green
-    accent: green
-  logo: logo.png
-  favicon: logo.png
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      accent: green
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: green
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
   features:
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.footer
+    - navigation.path
+    - toc.follow
     - search.suggest
     - search.highlight
     - content.code.copy
     - content.tabs.link
+    - content.action.edit
+
+copyright: Apache License 2.0 &middot; Built on Apache Pekko &middot; Not affiliated with Spring or the Apache Software Foundation
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/seonWKim/actor-spring-boot-starter
+      name: GitHub
+    - icon: fontawesome/brands/discord
+      link: https://discord.com/channels/1439734161614045205/1439734162100846655
+      name: Discord
+    - icon: simple/apachemaven
+      link: https://central.sonatype.com/artifact/io.github.seonwkim/actor-spring-boot-starter
+      name: Maven Central
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
