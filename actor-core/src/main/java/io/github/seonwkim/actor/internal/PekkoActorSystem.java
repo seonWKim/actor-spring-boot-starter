@@ -10,11 +10,16 @@ import io.github.seonwkim.actor.SpringActorSystem;
 import io.github.seonwkim.actor.SpringActorWithContext;
 import io.github.seonwkim.actor.SupervisionStrategy;
 import io.github.seonwkim.actor.TagsConfig;
+import io.github.seonwkim.actor.cluster.ClusterMember;
+import io.github.seonwkim.actor.cluster.MemberStatus;
+import io.github.seonwkim.actor.cluster.SpringCluster;
 import io.github.seonwkim.actor.internal.RootGuardian.Spawned;
 import io.github.seonwkim.actor.shard.SpringShardedActor;
 import io.github.seonwkim.actor.shard.SpringShardedActorBuilder;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -284,6 +289,24 @@ public final class PekkoActorSystem implements SpringActorSystem, DisposableBean
     @Override
     public boolean isClusterMode() {
         return cluster != null;
+    }
+
+    @Override
+    public SpringCluster cluster() {
+        return cluster != null ? cluster.members() : new LocalCluster(nodeAddress());
+    }
+
+    /** Outside cluster mode: this node is the only member, up and without roles. */
+    private record LocalCluster(String address) implements SpringCluster {
+        @Override
+        public ClusterMember self() {
+            return new ClusterMember(address, Set.of(), MemberStatus.UP);
+        }
+
+        @Override
+        public List<ClusterMember> members() {
+            return List.of(self());
+        }
     }
 
     /** Starts publishing cluster events as Spring events; a no-op in local mode. */

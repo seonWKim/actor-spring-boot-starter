@@ -160,6 +160,53 @@ your store to check it behaves like the built-in ones (see [Testing](../testing.
 | `dns` | `pekko-dns` | built in |
 | `config` | `config` | built in; peers under `spring.actor.pekko.discovery.config.services` |
 
+## Who is in the cluster
+
+`actorSystem.cluster()` tells a node who it is and who is in the cluster now:
+
+=== "Java"
+
+    ```java
+    ClusterMember me = actorSystem.cluster().self();
+    List<ClusterMember> up = actorSystem.cluster().members().stream()
+            .filter(member -> member.status() == MemberStatus.UP)
+            .toList();
+    ```
+
+=== "Kotlin"
+
+    ```kotlin
+    val me: ClusterMember = actorSystem.cluster().self()
+    val up = actorSystem.cluster().members().filter { it.status() == MemberStatus.UP }
+    ```
+
+- `self()` is this node: its address, its roles and its status.
+- `members()` lists the members this node sees, in every status, oldest first. A node that left drops out
+  once it is removed.
+- Each call reads the current state. To react to changes, listen for `ClusterEvent`s instead
+  (`@EventListener void on(ClusterEvent.MemberUp event)`).
+- `ClusterMember.host()` and `port()` read the host and port from the address (`::1`, without brackets, for
+  `pekko://app@[::1]:25520`).
+- Outside cluster mode, `self()` is this node with the address `nodeAddress()` returns, status `UP` and no
+  roles, and `members()` lists only it.
+
+To tell nodes apart in your own code, give each one a role and read it back, rather than working it out
+from its port or address:
+
+```yaml
+spring:
+  actor:
+    cluster:
+      roles: [zone-a]
+```
+
+```java
+boolean inZoneA = actorSystem.cluster().self().roles().contains("zone-a");
+```
+
+The roles also include one that Pekko adds for the node's data center (`dc-default`), so check for the role
+you set rather than comparing the whole set.
+
 ## Properties
 
 | Key | Default | Meaning |

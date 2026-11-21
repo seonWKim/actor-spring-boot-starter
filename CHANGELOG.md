@@ -9,6 +9,24 @@
   `pipeToSelf(target.ask(command).withTimeout(timeout).execute(), ...)`. `singletonHandle()` on the spawn builder
   starts a cluster singleton and returns its handle at once; messages sent before the singleton runs wait in the
   proxy. `asClusterSingleton().spawn()` is unchanged.
+- **A `DeploymentGeneration` without blue-green, and a handler that drops stale messages (#264).** Without
+  `spring.actor.generation.color`, the starter registers `DeploymentGeneration.none()`: always active,
+  `stamp()` returns 0 and `check()` never throws, so applications inject `DeploymentGeneration` directly
+  instead of through `ObjectProvider`. An application's own bean still replaces it. A message that
+  implements the new `GenerationStamped` (`long epoch()`) can be handled with
+  `generation.ifCurrent((ctx, msg) -> ...)`, which drops a message of an older epoch and logs a warning
+  instead of running the handler.
+- **This node and the current members (#266).** `actorSystem.cluster().self()` is this node's member and
+  `actorSystem.cluster().members()` lists the members it sees now, oldest first. Outside cluster mode the node
+  is the only member, `UP` and without roles. `ClusterMember` gains `host()` and `port()`, read from its
+  address. The cluster formation guide shows how to tell nodes apart with `spring.actor.cluster.roles`
+  instead of their ports.
+
+- **The generation endpoint reports this node's view (#265).** `GET /actuator/generation` also returns
+  `node`: the generation this node reads now, when it read it from the store (`readAt`), whether its color
+  is active (`colorActive`) and whether the warm-up indicator is `UP` (`warm`, `null` outside cluster mode).
+  Reading the endpoint no longer refreshes the node's read, so a pipeline verifies a switch by polling each
+  node until all report the new epoch. The Kubernetes example's `blue-green.sh verify` does that.
 
 ### Fixes
 

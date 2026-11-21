@@ -12,9 +12,12 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.util.Objects;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationListener;
@@ -23,8 +26,9 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Blue-green activation and fencing ({@link DeploymentGeneration}) when {@code spring.actor.generation.color}
- * is set, on the {@link GenerationStore} that {@code spring.actor.generation.store} picks or the
- * application defines. With Actuator on the classpath, also the {@code generation} endpoint, and with
+ * is set, and {@link DeploymentGeneration#none()} when it is not and the application defines no
+ * {@code DeploymentGeneration} of its own. With a color, the generation runs on the {@link GenerationStore}
+ * that {@code spring.actor.generation.store} picks or the application defines. With Actuator on the classpath, also the {@code generation} endpoint, and with
  * Micrometer the {@code actor.generation.activations} meter.
  *
  * <p>Each nested class carries all of its own conditions, and none needs an Actuator or Micrometer class
@@ -32,13 +36,14 @@ import org.springframework.context.annotation.Configuration;
  */
 @AutoConfiguration(after = {ActorConfiguration.class, StoreConfiguration.class})
 @ConditionalOnActorEnabled
-@ConditionalOnProperty(name = GenerationConfiguration.COLOR)
 public class GenerationConfiguration {
 
     static final String COLOR = "spring.actor.generation.color";
     static final String METER = "actor.generation.activations";
+    static final String WARMUP_INDICATOR = "actorWarmupHealthIndicator";
 
     @Bean
+    @ConditionalOnProperty(name = COLOR)
     public StoreDeploymentGeneration deploymentGeneration(
             ObjectProvider<GenerationStore> store,
             ActorProperties properties,
@@ -58,6 +63,16 @@ public class GenerationConfiguration {
                 generation.getRefresh(),
                 Clock.systemUTC(),
                 events);
+    }
+
+    /**
+     * Declared after {@link #deploymentGeneration}, so that it sees that bean: Spring registers a
+     * configuration's bean methods in order.
+     */
+    @Bean
+    @ConditionalOnMissingBean(DeploymentGeneration.class)
+    public DeploymentGeneration noDeploymentGeneration() {
+        return DeploymentGeneration.none();
     }
 
     /** Counts each attempt by outcome. */
@@ -81,9 +96,13 @@ public class GenerationConfiguration {
     @ConditionalOnProperty(name = COLOR)
     static class Endpoint {
 
+        /** Looks the warm-up indicator up by name: its class needs actor-cluster, which may be missing. */
         @Bean
-        GenerationEndpoint generationEndpoint(StoreDeploymentGeneration generation) {
-            return new GenerationEndpoint(generation);
+        GenerationEndpoint generationEndpoint(StoreDeploymentGeneration generation, BeanFactory beans) {
+            HealthIndicator warmup = beans.containsBean(WARMUP_INDICATOR)
+                    ? beans.getBean(WARMUP_INDICATOR, HealthIndicator.class)
+                    : null;
+            return new GenerationEndpoint(generation, warmup);
         }
 
         @Bean

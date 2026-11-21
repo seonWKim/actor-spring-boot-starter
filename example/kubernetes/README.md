@@ -344,7 +344,7 @@ scripts/canary.sh promote        # roll the main pods to v3 and remove the canar
 # Blue-green: green is its own cluster on v4; blue keeps serving until activation
 scripts/blue-green.sh deploy spring-actor-chat:v4   # 1. start green, wait for /actuator/health/warmup, then ready
 scripts/blue-green.sh activate   # 2. green becomes the active generation, then the Service selects it
-scripts/blue-green.sh verify     # 3. wait until the Service's endpoints are only green pods
+scripts/blue-green.sh verify     # 3. wait until every pod reads the new epoch and the Service's endpoints are only green pods
 # scripts/blue-green.sh rollback # switch back to blue
 scripts/blue-green.sh retire     # 4. delete blue
 ```

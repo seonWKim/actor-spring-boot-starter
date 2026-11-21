@@ -5,8 +5,9 @@
 #                                     every green pod is warmed up (/actuator/health/warmup) and ready
 #   blue-green.sh activate         2. make green the active generation (POST /actuator/generation: a
 #                                     compare-and-set on the epoch), then point the HTTP Service at green
-#   blue-green.sh verify           3. wait until the record says green and the Service's endpoints are
-#                                     exactly the green pods
+#   blue-green.sh verify           3. wait until the record says green, every running pod of both colors
+#                                     reads its epoch (node.active in GET /actuator/generation), and the
+#                                     Service's endpoints are exactly the green pods
 #   blue-green.sh retire           4. delete blue once green has served for a while
 #   blue-green.sh rollback         activate blue again (a new, higher epoch) and point the Service at it
 # activate and rollback take the epoch they expect and an operation ID from EXPECTED_EPOCH and
@@ -77,6 +78,17 @@ record_says() {
     [ "$(generation "$(any_pod "$2")" | jq -r '.active.color')" = "$1" ]
 }
 
+# Every running pod of both colors reads the epoch the record has now. A node reuses its read of the
+# record for spring.actor.generation.refresh, so this lags the record by up to that long. A pod whose
+# answer has no node view (an older starter) is skipped.
+every_pod_reads_record() {
+    epoch=$(generation "$(any_pod "$GREEN")" | jq '.active.epoch')
+    for pod in $(running_pods "$BLUE") $(running_pods "$GREEN"); do
+        [ "$(generation "$pod" | jq 'if has("node") then .node.active.epoch else '"$epoch"' end')" = "$epoch" ] \
+            || return 1
+    done
+}
+
 # Retries "$@" every 2 seconds until it succeeds or $TIMEOUT seconds have passed.
 until_ok() {
     what=$1; shift
@@ -132,6 +144,7 @@ activate)
     ;;
 verify)
     until_ok "the generation record to say green" record_says green "$GREEN"
+    until_ok "every pod to read the new epoch" every_pod_reads_record
     until_ok "the Service to serve only green" serves_only "$GREEN"
     ;;
 rollback)

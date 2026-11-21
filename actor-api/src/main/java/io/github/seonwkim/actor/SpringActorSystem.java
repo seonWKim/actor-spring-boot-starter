@@ -1,5 +1,6 @@
 package io.github.seonwkim.actor;
 
+import io.github.seonwkim.actor.cluster.SpringCluster;
 import io.github.seonwkim.actor.shard.SpringShardedActor;
 import io.github.seonwkim.actor.shard.SpringShardedActorBuilder;
 import java.time.Duration;
@@ -227,6 +228,16 @@ public interface SpringActorSystem {
      * @return true if cluster mode is enabled, false otherwise
      */
     boolean isClusterMode();
+
+    /**
+     * Who this node is and who is in the cluster now: {@code cluster().self()} and {@code
+     * cluster().members()}. Outside cluster mode it reports this node as the only member, up and with no
+     * roles (see {@link SpringCluster}).
+     *
+     * @return This node's view of the cluster
+     * @since 1.2.0
+     */
+    SpringCluster cluster();
 
     /**
      * Runs Pekko coordinated shutdown and waits at most {@code timeout} for the actor system to
