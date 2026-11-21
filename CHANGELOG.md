@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Features
+
+- **This node and the current members (#266).** `actorSystem.cluster().self()` is this node's member and
+  `actorSystem.cluster().members()` lists the members it sees now, oldest first. Outside cluster mode the node
+  is the only member, `UP` and without roles. `ClusterMember` gains `host()` and `port()`, read from its
+  address. The cluster formation guide shows how to tell nodes apart with `spring.actor.cluster.roles`
+  instead of their ports.
+
 ### Fixes
 
 - **`spring.actor.generation.*` stays out of the Pekko config (#254).** The `generation` keys were also passed
