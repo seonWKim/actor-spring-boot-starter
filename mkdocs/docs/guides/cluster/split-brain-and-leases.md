@@ -191,8 +191,10 @@ An implementation, as a bean:
 
 `Duration` is `java.time.Duration` in both.
 
-Each method must be atomic in the store. Methods may block: the starter calls them on the blocking
-dispatcher, and owns the renewal timers. Run `LeaseStoreContract` from `actor-test` against your store to
+Each method must be atomic in the store. Methods may block: the starter calls them on the lease's own
+four threads (`spring-actor.lease-dispatcher`), not on Pekko's blocking pool, so the application's blocking
+work cannot hold up a renewal. It owns the renewal timers, and counts a lease lost at its deadline on
+another thread, so a hung store call cannot delay that either. Run `LeaseStoreContract` from `actor-test` against your store to
 check it (see [Testing](../testing.md#contract-suites-for-your-own-store)).
 
 ## Related

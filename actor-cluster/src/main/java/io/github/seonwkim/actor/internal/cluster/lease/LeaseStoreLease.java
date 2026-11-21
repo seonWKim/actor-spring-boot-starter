@@ -14,7 +14,6 @@ import org.apache.pekko.actor.Cancellable;
 import org.apache.pekko.actor.ExtendedActorSystem;
 import org.apache.pekko.coordination.lease.LeaseSettings;
 import org.apache.pekko.coordination.lease.javadsl.Lease;
-import org.apache.pekko.dispatch.Dispatchers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.ExecutionContextExecutor;
@@ -35,6 +34,9 @@ public final class LeaseStoreLease extends Lease {
     /** The lease config path that pekko.cluster.*.use-lease and lease-majority point to. */
     public static final String CONFIG_PATH = "spring-actor.lease";
 
+    /** The dispatcher store calls run on: its own threads, not Pekko's shared blocking pool. */
+    public static final String DISPATCHER = "spring-actor.lease-dispatcher";
+
     private static final Logger log = LoggerFactory.getLogger(LeaseStoreLease.class);
 
     /** The lease while held: when it counts as lost, the renewal timer and the lost callback. */
@@ -43,7 +45,11 @@ public final class LeaseStoreLease extends Lease {
     private final LeaseSettings settings;
     private final LeaseStore store;
     private final ActorSystem system;
-    private final ExecutionContextExecutor blocking;
+    /** Store calls: they may block. */
+    private final ExecutionContextExecutor storeCalls;
+    /** The deadline check: it never blocks, so it does not wait behind a hung store call. */
+    private final ExecutionContextExecutor deadlines;
+
     private final Duration ttl;
     private final Duration renewInterval;
     private final Duration margin;
@@ -69,7 +75,8 @@ public final class LeaseStoreLease extends Lease {
             throw new IllegalArgumentException("spring.actor.cluster.lease.expiry-margin (" + margin
                     + ") must be less than the ttl (" + ttl + ")");
         }
-        this.blocking = system.dispatchers().lookup(Dispatchers.DefaultBlockingDispatcherId());
+        this.storeCalls = system.dispatchers().lookup(DISPATCHER);
+        this.deadlines = system.dispatcher();
     }
 
     @Override
@@ -90,7 +97,7 @@ public final class LeaseStoreLease extends Lease {
                 return false;
             }
             Cancellable renewal =
-                    system.scheduler().scheduleWithFixedDelay(renewInterval, renewInterval, this::renew, blocking);
+                    system.scheduler().scheduleWithFixedDelay(renewInterval, renewInterval, this::renew, storeCalls);
             Held previous = held.getAndSet(new Held(lostAt(started), renewal, leaseLostCallback));
             if (previous != null) {
                 previous.renewal().cancel();
@@ -110,7 +117,8 @@ public final class LeaseStoreLease extends Lease {
      */
     private void checkAtDeadline(long renewalStartedNanos) {
         Duration untilLost = Duration.ofNanos(lostAt(renewalStartedNanos) - System.nanoTime());
-        system.scheduler().scheduleOnce(untilLost.isNegative() ? Duration.ZERO : untilLost, this::checkLease, blocking);
+        system.scheduler()
+                .scheduleOnce(untilLost.isNegative() ? Duration.ZERO : untilLost, this::checkLease, deadlines);
     }
 
     private void renew() {
@@ -172,7 +180,7 @@ public final class LeaseStoreLease extends Lease {
     }
 
     private CompletionStage<Boolean> call(java.util.function.Supplier<Boolean> operation) {
-        return CompletableFuture.supplyAsync(operation, blocking)
+        return CompletableFuture.supplyAsync(operation, storeCalls)
                 .orTimeout(operationTimeout.toMillis(), TimeUnit.MILLISECONDS);
     }
 }

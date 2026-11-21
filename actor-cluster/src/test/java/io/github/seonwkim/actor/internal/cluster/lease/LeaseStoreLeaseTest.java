@@ -9,6 +9,7 @@ import io.github.seonwkim.actor.spi.LeaseStore;
 import io.github.seonwkim.actor.test.InMemoryLeaseStore;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pekko.actor.ActorSystem;
@@ -16,6 +17,7 @@ import org.apache.pekko.actor.BootstrapSetup;
 import org.apache.pekko.actor.setup.ActorSystemSetup;
 import org.apache.pekko.coordination.lease.javadsl.Lease;
 import org.apache.pekko.coordination.lease.javadsl.LeaseProvider;
+import org.apache.pekko.dispatch.Dispatchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
@@ -78,6 +80,79 @@ class LeaseStoreLeaseTest {
 
         await().atMost(Duration.ofSeconds(2)).untilTrue(lost);
         assertThat(lease.checkLease()).isFalse();
+    }
+
+    @Test
+    void theLeaseIsLostOnTimeWhenRenewalsHangAndTheBlockingPoolIsBusy() throws Exception {
+        InMemoryLeaseStore store = new InMemoryLeaseStore();
+        AtomicBoolean hang = new AtomicBoolean();
+        CountDownLatch release = new CountDownLatch(1);
+        LeaseStore hanging = new DelegatingStore(store) {
+            @Override
+            public boolean renew(String lease, String owner, Duration ttl) {
+                if (hang.get()) {
+                    awaitQuietly(release);
+                }
+                return super.renew(lease, owner, ttl);
+            }
+        };
+        Lease lease = lease(hanging);
+        AtomicLong lostAt = new AtomicLong();
+        try {
+            lease.acquire(cause -> lostAt.set(System.nanoTime()))
+                    .toCompletableFuture()
+                    .get();
+            long acquired = System.nanoTime();
+            // The application's own blocking work takes every thread of Pekko's blocking pool.
+            var blocking = system.dispatchers().lookup(Dispatchers.DefaultBlockingDispatcherId());
+            for (int i = 0; i < 64; i++) {
+                blocking.execute(() -> awaitQuietly(release));
+            }
+            hang.set(true);
+
+            await().atMost(TTL).until(() -> lostAt.get() != 0);
+            assertThat(Duration.ofNanos(lostAt.get() - acquired))
+                    .isLessThan(TTL.minus(MARGIN).plusMillis(300));
+        } finally {
+            release.countDown();
+        }
+    }
+
+    private static void awaitQuietly(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** A store that passes every call to another. */
+    private static class DelegatingStore implements LeaseStore {
+        private final LeaseStore store;
+
+        DelegatingStore(LeaseStore store) {
+            this.store = store;
+        }
+
+        @Override
+        public boolean tryAcquire(String lease, String owner, Duration ttl) {
+            return store.tryAcquire(lease, owner, ttl);
+        }
+
+        @Override
+        public boolean renew(String lease, String owner, Duration ttl) {
+            return store.renew(lease, owner, ttl);
+        }
+
+        @Override
+        public void release(String lease, String owner) {
+            store.release(lease, owner);
+        }
+
+        @Override
+        public Optional<String> holder(String lease) {
+            return store.holder(lease);
+        }
     }
 
     @Test
