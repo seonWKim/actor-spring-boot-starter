@@ -5,7 +5,7 @@
 ### Features
 
 - **`askToSelf` and a ready singleton handle (#267).** `ctx.askToSelf(target, command, timeout, (reply, error) ->
-  message)` asks another actor and delivers the reply or the failure to this actor as a message, like
+  message)` asks another actor or a sharded entity and delivers the reply or the failure to this actor as a message, like
   `pipeToSelf(target.ask(command).withTimeout(timeout).execute(), ...)`. `singletonHandle()` on the spawn builder
   starts a cluster singleton and returns its handle at once; messages sent before the singleton runs wait in the
   proxy. `asClusterSingleton().spawn()` is unchanged.

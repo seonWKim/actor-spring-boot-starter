@@ -329,7 +329,8 @@ ctx.askToSelf(approvals, new ApprovalActor.RequestApproval(request), Duration.of
                 : new ApprovalResolved(decision.approved(), "answered"));
 ```
 
-When no reply comes in time, `error` is a `TimeoutException`.
+When no reply comes in time, `error` is a `TimeoutException`. The target can also be a sharded entity's
+handle (`actorSystem.sharded(RoomActor.class).withId(roomId).get()`), wherever the entity runs.
 
 The function you pass to `pipeToSelf` gets the value (or `null`) and the error (or `null`). It runs when
 the stage completes, so it must not touch the actor's state; it only builds the message. The actor

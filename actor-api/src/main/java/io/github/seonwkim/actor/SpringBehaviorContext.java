@@ -1,6 +1,7 @@
 package io.github.seonwkim.actor;
 
 import io.github.seonwkim.actor.receptionist.ServiceName;
+import io.github.seonwkim.actor.shard.SpringShardedActorHandle;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -123,6 +124,26 @@ public interface SpringBehaviorContext<T> {
      */
     default <R> void askToSelf(
             SpringActorHandle<?> target,
+            AskCommand<R> command,
+            Duration timeout,
+            BiFunction<? super R, Throwable, ? extends T> toMessage) {
+        pipeToSelf(target.ask(command).withTimeout(timeout).execute(), toMessage);
+    }
+
+    /**
+     * {@link #askToSelf(SpringActorHandle, AskCommand, Duration, BiFunction)} for a sharded entity: asks it
+     * wherever it runs, and sends this actor the message {@code toMessage} builds from the reply or the
+     * failure.
+     *
+     * <pre>{@code
+     * ctx.askToSelf(actorSystem.sharded(RoomActor.class).withId(roomId).get(), new Post(text), Duration.ofSeconds(2),
+     *         (ok, error) -> new Posted(roomId, error == null && ok));
+     * }</pre>
+     *
+     * @since 1.2.0
+     */
+    default <R> void askToSelf(
+            SpringShardedActorHandle<?> target,
             AskCommand<R> command,
             Duration timeout,
             BiFunction<? super R, Throwable, ? extends T> toMessage) {
