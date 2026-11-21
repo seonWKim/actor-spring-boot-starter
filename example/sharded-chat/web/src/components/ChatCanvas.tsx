@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { avatarOf } from '../lib/avatars.ts';
 import { layoutChat, memberships, type ChatRoomInfo, type ChatUserInfo, type Placed, type Point } from '../lib/chatGraph.ts';
 import { progress, pruneDots, type FlowDot, type FlowState } from '../lib/chatFlow.ts';
-import { done, plan, positionAt, type Motion, type Spot } from '../lib/motion.ts';
+import { BIRTH_MS, DEATH_MS, done, lifeChanges, phase, plan, positionAt, type Death, type Motion } from '../lib/motion.ts';
 import { nodeColour, type ClusterNode } from '../lib/nodes.ts';
 import { bareId, colorOfId } from '../lib/ids.ts';
 import type { ColorState, DeployState } from '../lib/api.ts';
@@ -96,12 +96,19 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
   }, [layout]);
   // Where each actor is drawn: gliding to its place in the layout (motion.ts), so a resharded room or
   // user travels to its new node instead of vanishing there and appearing here.
-  const shownRef = useRef(new Map<string, Spot>());
+  const shownRef = useRef(new Map<string, Placed>());
   const motionsRef = useRef(new Map<string, Motion>());
+  // Actors that started (they grow in with a ring) and stopped (they fade out where they were).
+  const bornRef = useRef(new Map<string, number>());
+  const deathsRef = useRef<Death<Placed>[]>([]);
   const plannedFor = useRef<Map<string, Placed> | null>(null);
   if (plannedFor.current !== where) {
     const now = performance.now();
     const next = plan(shownRef.current, where, now);
+    const life = lifeChanges(shownRef.current, where, now);
+    for (const [id, start] of bornRef.current) if (now - start < BIRTH_MS && where.has(id)) life.born.set(id, life.born.get(id) ?? start);
+    bornRef.current = life.born;
+    deathsRef.current = [...deathsRef.current.filter((d) => now - d.start < DEATH_MS && !where.has(d.id)), ...life.died];
     // A move already on its way to the same place carries on (it keeps its pace and its trail).
     for (const [id, m] of motionsRef.current) {
       const to = where.get(id);
@@ -118,13 +125,27 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
   }
   shownRef.current = display;
   const trails = [...motionsRef.current].filter(([, m]) => m.resharded && !done(m, renderedAt));
+  const births = [...bornRef.current].filter(([, start]) => renderedAt - start < BIRTH_MS);
+  const deaths = deathsRef.current.filter((d) => renderedAt - d.start < DEATH_MS);
+  const grow = (id: string) => {
+    const start = bornRef.current.get(id);
+    if (start === undefined) return 1;
+    const t = phase(start, renderedAt, BIRTH_MS * 0.6);
+    // Out-back: it overshoots a little, then settles.
+    return 1 + 2.7 * (t - 1) ** 3 + 1.7 * (t - 1) ** 2;
+  };
+  const scaled = (p: Point, k: number) => (k === 1 ? undefined : `translate(${p.x} ${p.y}) scale(${Math.max(0.01, k)}) translate(${-p.x} ${-p.y})`);
   const [, setMotionFrame] = useState(0);
   useEffect(() => {
     let frame = 0;
     const step = () => {
       setMotionFrame((n) => n + 1);
       const now = performance.now();
-      if ([...motionsRef.current.values()].some((m) => !done(m, now))) frame = requestAnimationFrame(step);
+      const busy =
+        [...motionsRef.current.values()].some((m) => !done(m, now)) ||
+        [...bornRef.current.values()].some((start) => now - start < BIRTH_MS) ||
+        deathsRef.current.some((d) => now - d.start < DEATH_MS);
+      if (busy) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
@@ -284,6 +305,13 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
                 <circle cx={u.x} cy={u.y} r={layout.avatar} />
               </clipPath>
             ))}
+            {deaths
+              .filter((d) => d.at.kind === 'user')
+              .map((d) => (
+                <clipPath key={`gone-${d.id}`} id={clipId(`gone-${d.id}`)}>
+                  <circle cx={d.at.x} cy={d.at.y} r={layout.avatar} />
+                </clipPath>
+              ))}
           </defs>
           {layout.bands.map((b) => {
             const key = b.key === 'green' ? 'green' : 'blue';
@@ -377,6 +405,56 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
               </g>
             );
           })}
+          {births.map(([id, start]) => {
+            const p = display.get(id);
+            if (!p) return null;
+            const t = phase(start, renderedAt, BIRTH_MS);
+            const size = p.kind === 'room' ? layout.room : layout.avatar;
+            return (
+              <g key={`born-${id}`} pointerEvents="none" data-born={id}>
+                <circle cx={p.x} cy={p.y} r={size * (1 + 2.5 * t)} fill="none" stroke={nodeVar(p.node)} strokeWidth={2.5 * (1 - t) + 0.5} strokeOpacity={1 - t} />
+                <text x={p.x} y={p.y - size - 8 - 10 * t} textAnchor="middle" className="text-[11px] font-semibold" fill={nodeVar(p.node)} fillOpacity={1 - t * t}>
+                  started
+                </text>
+              </g>
+            );
+          })}
+          {deaths.map((d) => {
+            const t = phase(d.start, renderedAt, DEATH_MS);
+            const p = d.at;
+            const size = p.kind === 'room' ? layout.room : layout.avatar;
+            const k = 1 - 0.6 * t;
+            // A new actor drawn in its place says "started"; this one's word would sit on top of it.
+            const crowded = births.some(([id]) => {
+              const q = display.get(id);
+              return q !== undefined && Math.hypot(q.x - p.x, q.y - p.y) < 3 * size;
+            });
+            return (
+              <g key={`gone-${d.id}`} pointerEvents="none" data-died={d.id} opacity={1 - t}>
+                <g transform={scaled(p, k)}>
+                  {p.kind === 'room' ? (
+                    <rect x={p.x - size} y={p.y - size} width={2 * size} height={2 * size} rx={size * 0.35} fill="var(--color-ring-bg)" stroke="var(--color-log-error)" strokeWidth={2} strokeDasharray="3 3" />
+                  ) : (
+                    <>
+                      <circle cx={p.x} cy={p.y} r={size + 2} fill="var(--color-ring-bg)" stroke="var(--color-log-error)" strokeWidth={1.5} strokeDasharray="3 3" />
+                      <image href={avatarOf(d.id)} x={p.x - size} y={p.y - size} width={2 * size} height={2 * size} clipPath={`url(#${clipId(`gone-${d.id}`)})`} opacity={0.5} style={{ filter: 'grayscale(1)' }} />
+                    </>
+                  )}
+                  <path
+                    d={`M${p.x - size * 0.55} ${p.y - size * 0.55}L${p.x + size * 0.55} ${p.y + size * 0.55}M${p.x + size * 0.55} ${p.y - size * 0.55}L${p.x - size * 0.55} ${p.y + size * 0.55}`}
+                    stroke="var(--color-log-error)"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                  />
+                </g>
+                {!crowded && (
+                  <text x={p.x} y={p.y - size - 8 + 10 * t} textAnchor="middle" className="text-[11px] font-semibold" fill="var(--color-log-error)">
+                    stopped
+                  </text>
+                )}
+              </g>
+            );
+          })}
           {layout.rooms.map(at).map((r) => {
             const s = layout.room;
             const room = rooms.find((x) => x.id === r.id);
@@ -384,6 +462,7 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
               <g
                 key={r.id}
                 data-actor-id={r.id}
+                transform={scaled(r, grow(r.id))}
                 className="cursor-pointer transition-opacity"
                 opacity={dimmed(r.id) ? 0.3 : standby(r.id) ? 0.45 : 1}
                 onClick={() => onSelect(r.id)}
@@ -418,6 +497,7 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
               <g
                 key={u.id}
                 data-actor-id={u.id}
+                transform={scaled(u, grow(u.id))}
                 className="cursor-pointer transition-opacity"
                 opacity={dimmed(u.id) ? 0.3 : standby(u.id) ? 0.45 : 1}
                 onClick={() => onSelect(u.id)}

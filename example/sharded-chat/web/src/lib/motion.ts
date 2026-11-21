@@ -57,3 +57,39 @@ export function plan(shown: ReadonlyMap<string, Spot>, next: ReadonlyMap<string,
   }
   return motions;
 }
+
+/** How long a started actor takes to grow in, and a stopped one to fade out. */
+export const BIRTH_MS = 1200;
+export const DEATH_MS = 1400;
+
+/** A stopped actor, still drawn where it was until it has faded out. */
+export interface Death<T extends Spot> {
+  id: string;
+  at: T;
+  start: number;
+}
+
+/**
+ * The actors that started and stopped between two layouts. Started: in `next`, neither it nor its twin
+ * was drawn before (a twin crossing from the other color is a move, not a start). Stopped: drawn
+ * before, gone from `next`. The first layout starts nothing: the page has only just opened.
+ */
+export function lifeChanges<T extends Spot>(
+  shown: ReadonlyMap<string, T>,
+  next: ReadonlyMap<string, T>,
+  now: number,
+): { born: Map<string, number>; died: Death<T>[] } {
+  const born = new Map<string, number>();
+  const died: Death<T>[] = [];
+  if (shown.size === 0) return { born, died };
+  for (const id of next.keys()) {
+    if (!shown.has(id) && !shown.has(twinOf(id) ?? '')) born.set(id, now);
+  }
+  for (const [id, at] of shown) {
+    if (!next.has(id)) died.push({ id, at, start: now });
+  }
+  return { born, died };
+}
+
+/** 0 to 1 over `duration` from `start`. */
+export const phase = (start: number, now: number, duration: number) => Math.min(1, Math.max(0, (now - start) / duration));

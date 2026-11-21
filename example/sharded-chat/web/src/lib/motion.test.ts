@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MOVE_MS, SHIFT_MS, plan, positionAt, twinOf, type Spot } from './motion.ts';
+import { MOVE_MS, SHIFT_MS, lifeChanges, plan, positionAt, twinOf, type Spot } from './motion.ts';
 
 const spot = (x: number, y: number, node: number): Spot => ({ x, y, node });
 
@@ -26,4 +26,17 @@ test("a new actor in one color starts from its twin in the other; one without a 
   assert.deepEqual(motions.get('chat-room-8@green')!.from, { x: 0, y: 0 });
   assert.equal(motions.get('chat-room-8@green')!.resharded, true);
   assert.equal(motions.has('chat-room-9@green'), false);
+});
+
+test('a new actor is born and a vanished one dies; a twin crossing colors is neither', () => {
+  const shown = new Map([['chat-room-1@blue', spot(0, 0, 1)], ['chat-room-2@blue', spot(10, 0, 1)]]);
+  const next = new Map([['chat-room-1@blue', spot(0, 0, 1)], ['chat-room-1@green', spot(300, 0, 4)], ['chat-room-3@blue', spot(20, 0, 2)]]);
+  const { born, died } = lifeChanges(shown, next, 7);
+  assert.deepEqual([...born], [['chat-room-3@blue', 7]]);
+  assert.deepEqual(died, [{ id: 'chat-room-2@blue', at: spot(10, 0, 1), start: 7 }]);
+});
+
+test('the first layout the page draws starts nothing', () => {
+  const { born, died } = lifeChanges(new Map(), new Map([['chat-room-1@blue', spot(0, 0, 1)]]), 0);
+  assert.deepEqual([born.size, died.length], [0, 0]);
 });
