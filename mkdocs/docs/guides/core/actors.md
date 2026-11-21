@@ -448,6 +448,13 @@ fails with a `TimeoutException`; it never reports a running actor as missing.
 
 `get(Class, id)`, which completes with `null` when no actor runs, is deprecated: use `find`.
 
+Spawning a top-level actor, `find` and `exists` are each a request to one actor on the node, which keeps
+the top-level actors as its children and answers in turn. That suits up to hundreds of long-lived actors,
+looked up once and kept (see below). For an actor per user, order or session that is created and stopped
+often, use [sharded actors](../cluster/sharded-actors.md): you send to an id, the shard region routes the
+message without asking that one actor, and the entity starts on its first message and stops when idle. They also run on one node, as a
+one-node cluster (`spring.actor.cluster.join-self`).
+
 ### Keeping a handle
 
 A `SpringActorHandle` stays valid for as long as the actor runs, and sending through it costs nothing

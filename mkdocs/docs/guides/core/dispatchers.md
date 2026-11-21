@@ -261,7 +261,15 @@ threads on the same workload.
 ## Mailboxes
 
 By default each actor has an unbounded mailbox: it accepts every message, and a slow actor's queue grows
-until memory runs out. Set another mailbox when you spawn the actor:
+until memory runs out.
+
+Bound the mailbox of an actor that serves requests, such as one that HTTP handlers ask. When it falls
+behind, its callers' asks time out (after 3 s by default) and the callers retry, but every message they
+sent stays in the queue, so the queue grows faster the slower the actor gets, until the JVM runs out of
+memory. With a bound, the messages beyond it go to dead letters, and those asks fail with a timeout
+instead.
+
+Set another mailbox when you spawn the actor:
 
 === "Java"
 

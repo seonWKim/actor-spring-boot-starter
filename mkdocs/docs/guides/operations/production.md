@@ -244,6 +244,8 @@ Go through this list before the first release of a clustered application.
 
 - [ ] Actors that call blocking I/O (JDBC, blocking HTTP clients) run on `withBlockingDispatcher()` or a
       dispatcher of their own ([Dispatchers](../core/dispatchers.md)).
+- [ ] Actors that serve requests have a bounded mailbox (`MailboxConfig.bounded(n)`), so a slow actor with
+      retrying callers can't fill the heap ([Mailboxes](../core/dispatchers.md#mailboxes)).
 
 ## Native images (GraalVM)
 
