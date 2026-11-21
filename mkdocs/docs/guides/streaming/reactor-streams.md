@@ -8,6 +8,11 @@
 | To send a stream of elements to an actor | `askEach(elements, parallelism, ask)` | at most `parallelism` asks in flight |
 | The messages an actor sends | `messages(type)...flux(onSubscribe)` | a bounded buffer, or an acknowledgement per message |
 
+!!! info "Incubating"
+    `actor-streams` is incubating: its API may still change in a minor release, without a deprecation
+    period, while it collects feedback. Its types carry `@Incubating`. The compatibility promise covers
+    the core and cluster API.
+
 No Pekko type appears in this API. Pekko Streams runs underneath and stays an implementation detail.
 
 ## Setup

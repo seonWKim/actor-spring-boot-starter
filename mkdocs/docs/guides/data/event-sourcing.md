@@ -4,6 +4,11 @@ An event-sourced actor stores what happened (events) instead of its current stat
 decides which events to store; each event changes the state. When the actor starts again, after a
 restart, a deploy or a crash, it rebuilds its state from the stored events.
 
+!!! info "Incubating"
+    `actor-persistence` is incubating: its API may still change in a minor release, without a deprecation
+    period, while it collects feedback. Its types carry `@Incubating`. The compatibility promise covers
+    the core and cluster API.
+
 The `actor-persistence` module runs event-sourced actors on Pekko Persistence. The journal and the
 snapshots live in tables on your application's `DataSource`: no second connection pool, no Pekko
 configuration, and no Pekko types in your code.

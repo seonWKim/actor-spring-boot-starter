@@ -7,6 +7,11 @@ The `actor-test` module has three tools for tests:
 - **Contract suites**: the tests every `PeerRegistry` and `LeaseStore` must pass, to run against your own store,
   plus in-memory fakes of both.
 
+!!! info "Incubating"
+    `actor-test` is incubating: its API may still change in a minor release, without a deprecation
+    period, while it collects feedback. Its types carry `@Incubating`. The compatibility promise covers
+    the core and cluster API.
+
 Add it as a test dependency:
 
 === "Gradle"

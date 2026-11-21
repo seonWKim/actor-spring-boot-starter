@@ -175,3 +175,4 @@ flowchart LR
 
 - **Before 1.0:** a public method that changes stays one minor version as `@Deprecated(forRemoval = true)`, delegating to its replacement. The changelog lists it with the migration.
 - **From 1.0:** semantic versioning on `actor-api`. `internal` packages carry no compatibility promise.
+- **Incubating:** `actor-persistence`, `actor-projection`, `actor-streams`, `actor-metrics`, `actor-test` and `actor-kotlin` may change in a minor release, without a deprecation period, until they have had feedback. Their public packages carry `@Incubating` (a `package-info.java` per package), and each guide says so. A new public package in one of them gets the annotation too. Promoting a module means removing the annotation and the guide note, and is listed in the changelog.

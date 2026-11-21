@@ -5,6 +5,11 @@ somewhere else: a read model in your database through Spring Data, or a Kafka to
 Kafka. It remembers how far it got (its offset) in your database, so after a restart it resumes
 where it stopped.
 
+!!! info "Incubating"
+    `actor-projection` is incubating: its API may still change in a minor release, without a deprecation
+    period, while it collects feedback. Its types carry `@Incubating`. The compatibility promise covers
+    the core and cluster API.
+
 The `actor-projection` module runs projections on Pekko Projections, with no Pekko types in your
 code.
 

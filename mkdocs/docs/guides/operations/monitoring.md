@@ -7,6 +7,11 @@ and `ask`; log lines with actor context; and a ready-made Grafana dashboard with
 None of it needs a Java agent. An optional agent adds a few more meters (see
 [The optional Java agent](#the-optional-java-agent)).
 
+!!! info "Incubating"
+    `actor-metrics` is incubating: its API may still change in a minor release, without a deprecation
+    period, while it collects feedback. Its types carry `@Incubating`. The compatibility promise covers
+    the core and cluster API.
+
 ## Setup
 
 Add `actor-metrics`, Actuator and a Micrometer registry (Prometheus here):
