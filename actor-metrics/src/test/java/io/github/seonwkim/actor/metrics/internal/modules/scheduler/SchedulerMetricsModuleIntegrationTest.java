@@ -59,8 +59,6 @@ class SchedulerMetricsModuleIntegrationTest {
     @Disabled("ByteBuddy instrumentation of Scala scheduler methods does not match—advice never runs. "
             + "Scheduler interface is IGNORED; LightArrayRevolverScheduler matchers fail. Deferred.")
     void testScheduledCounterIncrementsWhenSchedulingTasks() throws Exception {
-        Thread.sleep(200);
-
         double initialScheduled = metricsBackend.getCounterValue("scheduler.tasks.scheduled");
 
         actorSystem.scheduler().scheduleOnce(java.time.Duration.ofMillis(10), () -> {}, actorSystem.dispatcher());

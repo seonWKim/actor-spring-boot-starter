@@ -1,11 +1,13 @@
 package io.github.seonwkim.actor;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
 import io.github.seonwkim.actor.autoconfigure.ActorConfiguration;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -156,41 +158,37 @@ public class ActorTagsIntegrationTest {
     }
 
     private void verifyTagsInLogs(String actorPath, String... expectedTags) {
-        // Wait a bit for logs to be written
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            List<ILoggingEvent> events = logAppender.getEvents();
+            boolean foundMatchingLog = false;
 
-        List<ILoggingEvent> events = logAppender.getEvents();
-        boolean foundMatchingLog = false;
+            for (ILoggingEvent event : events) {
+                Map<String, String> mdc = event.getMDCPropertyMap();
+                String pekkoSource = mdc.get("pekkoSource");
 
-        for (ILoggingEvent event : events) {
-            Map<String, String> mdc = event.getMDCPropertyMap();
-            String pekkoSource = mdc.get("pekkoSource");
-
-            if (pekkoSource != null && pekkoSource.contains(actorPath)) {
-                String pekkoTags = mdc.get("pekkoTags");
-                if (pekkoTags != null && !pekkoTags.isEmpty()) {
-                    // Verify all expected tags are present
-                    for (String expectedTag : expectedTags) {
-                        assertTrue(
-                                pekkoTags.contains(expectedTag),
-                                String.format(
-                                        "Expected tag '%s' not found in pekkoTags '%s' for actor %s",
-                                        expectedTag, pekkoTags, actorPath));
+                if (pekkoSource != null && pekkoSource.contains(actorPath)) {
+                    String pekkoTags = mdc.get("pekkoTags");
+                    if (pekkoTags != null && !pekkoTags.isEmpty()) {
+                        // Verify all expected tags are present
+                        for (String expectedTag : expectedTags) {
+                            assertTrue(
+                                    pekkoTags.contains(expectedTag),
+                                    String.format(
+                                            "Expected tag '%s' not found in pekkoTags '%s' for actor %s",
+                                            expectedTag, pekkoTags, actorPath));
+                        }
+                        foundMatchingLog = true;
+                        break;
                     }
-                    foundMatchingLog = true;
-                    break;
                 }
             }
-        }
 
-        assertTrue(
-                foundMatchingLog,
-                String.format(
-                        "No log entry found with tags for actor %s. Total log events: %d", actorPath, events.size()));
+            assertTrue(
+                    foundMatchingLog,
+                    String.format(
+                            "No log entry found with tags for actor %s. Total log events: %d",
+                            actorPath, events.size()));
+        });
     }
 
     @Test

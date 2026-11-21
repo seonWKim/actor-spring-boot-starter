@@ -2,6 +2,7 @@ package io.github.seonwkim.actor;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -292,15 +293,11 @@ class SpringActorSystemTest {
             // Stop the actor
             actorRef.stop();
 
-            // Wait a bit for the actor to stop
-            Thread.sleep(100);
-
-            // Verify actor no longer exists
-            assertThat(actorSystem
-                            .exists(TestHelloActor.class, actorId)
-                            .toCompletableFuture()
-                            .get(5, TimeUnit.SECONDS))
-                    .isFalse();
+            // Verify actor no longer exists, once it has stopped
+            await().atMost(Duration.ofSeconds(5)).until(() -> !actorSystem
+                    .exists(TestHelloActor.class, actorId)
+                    .toCompletableFuture()
+                    .get(5, TimeUnit.SECONDS));
         }
 
         @Test

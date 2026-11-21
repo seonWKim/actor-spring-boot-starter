@@ -1,5 +1,6 @@
 package io.github.seonwkim.actor.topic;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.github.seonwkim.actor.*;
@@ -10,6 +11,7 @@ import io.github.seonwkim.actor.SpringActorHandle;
 import io.github.seonwkim.actor.SpringActorSystem;
 import io.github.seonwkim.actor.SpringActorWithContext;
 import io.github.seonwkim.actor.serialization.JsonSerializable;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -72,8 +74,6 @@ class SpringTopicClusterTest extends AbstractClusterTest {
                         TopicName.of(ClusterMessage.class, "messageDistributesAcrossAllNodesInCluster-topic"))
                 .create();
 
-        Thread.sleep(1000); // Wait for cluster propagation
-
         // Get same topic on other nodes
         SpringTopicRef<ClusterMessage> topic2 = manager2.topic(
                         TopicName.of(ClusterMessage.class, "messageDistributesAcrossAllNodesInCluster-topic"))
@@ -102,7 +102,10 @@ class SpringTopicClusterTest extends AbstractClusterTest {
         topic1.subscribe(sub1);
         topic2.subscribe(sub2);
         topic3.subscribe(sub3);
-        Thread.sleep(1000); // Wait for subscriptions to propagate across cluster
+        TopicStats.awaitInstances(
+                topic1,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system1).scheduler(),
+                3); // Its subscribers on all three nodes are known
 
         // Publish from node 1 - all nodes should receive
         topic1.publish(new ClusterMessage("Hello cluster", "node-1"));
@@ -130,8 +133,6 @@ class SpringTopicClusterTest extends AbstractClusterTest {
                         TopicName.of(ClusterMessage.class, "publishFromDifferentNodesReachesAllSubscribers-topic"))
                 .create();
 
-        Thread.sleep(1000); // Wait for topic creation to propagate
-
         SpringTopicRef<ClusterMessage> topic2 = manager2.topic(
                         TopicName.of(ClusterMessage.class, "publishFromDifferentNodesReachesAllSubscribers-topic"))
                 .getOrCreate();
@@ -153,7 +154,14 @@ class SpringTopicClusterTest extends AbstractClusterTest {
 
         topic1.subscribe(sub1);
         topic2.subscribe(sub2);
-        Thread.sleep(1000); // Wait for cluster propagation
+        TopicStats.awaitInstances(
+                topic1,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system1).scheduler(),
+                2);
+        TopicStats.awaitInstances(
+                topic2,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system2).scheduler(),
+                2);
 
         // Publish from different nodes
         topic1.publish(new ClusterMessage("From node 1", "node-1"));
@@ -184,8 +192,6 @@ class SpringTopicClusterTest extends AbstractClusterTest {
                         TopicName.of(ClusterMessage.class, "unsubscribeOnOneNodeStopsMessagesOnlyForThatNode-topic"))
                 .create();
 
-        Thread.sleep(1000); // Wait for topic creation to propagate
-
         SpringTopicRef<ClusterMessage> topic2 = manager2.topic(
                         TopicName.of(ClusterMessage.class, "unsubscribeOnOneNodeStopsMessagesOnlyForThatNode-topic"))
                 .getOrCreate();
@@ -203,7 +209,10 @@ class SpringTopicClusterTest extends AbstractClusterTest {
 
         topic1.subscribe(sub1);
         topic2.subscribe(sub2);
-        Thread.sleep(1000); // Wait for cluster propagation
+        TopicStats.awaitInstances(
+                topic1,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system1).scheduler(),
+                2);
 
         // First message - both receive
         topic1.publish(new ClusterMessage("First", "node-1"));
@@ -213,14 +222,17 @@ class SpringTopicClusterTest extends AbstractClusterTest {
 
         // Unsubscribe node 1
         topic1.unsubscribe(sub1);
-        Thread.sleep(1000); // Wait longer for unsubscribe to propagate across cluster
+        TopicStats.awaitInstances(
+                topic2,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system2).scheduler(),
+                1); // Node 2 no longer sees node 1's subscriber
 
         // Second message - only node 2 receives
         topic2.publish(new ClusterMessage("Second", "node-2"));
-        Thread.sleep(1000); // Wait for message delivery
 
+        await().atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertEquals(2, count2.get(), "Node 2 should still receive"));
         assertEquals(1, count1.get(), "Node 1 should not receive after unsubscribe");
-        assertEquals(2, count2.get(), "Node 2 should still receive");
     }
 
     // ========== Edge Cases in Cluster ==========
@@ -248,8 +260,6 @@ class SpringTopicClusterTest extends AbstractClusterTest {
         SpringTopicRef<ClusterMessage> topicB1 = manager1.topic(
                         TopicName.of(ClusterMessage.class, "multipleTopicsWorkIndependentlyAcrossCluster-topic-b"))
                 .create();
-
-        Thread.sleep(1000); // Wait for topic creation to propagate
 
         SpringTopicRef<ClusterMessage> topicA2 = manager2.topic(
                         TopicName.of(ClusterMessage.class, "multipleTopicsWorkIndependentlyAcrossCluster-topic-a"))
@@ -285,7 +295,14 @@ class SpringTopicClusterTest extends AbstractClusterTest {
         topicA2.subscribe(subA2);
         topicB1.subscribe(subB1);
         topicB2.subscribe(subB2);
-        Thread.sleep(1000); // Wait for cluster propagation
+        TopicStats.awaitInstances(
+                topicA1,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system1).scheduler(),
+                2);
+        TopicStats.awaitInstances(
+                topicB2,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system2).scheduler(),
+                2);
 
         // Publish to topic A
         topicA1.publish(new ClusterMessage("Message A", "node-1"));
@@ -310,14 +327,13 @@ class SpringTopicClusterTest extends AbstractClusterTest {
         SpringTopicManager manager1 = context1.getBean(SpringTopicManager.class);
         SpringTopicManager manager2 = context2.getBean(SpringTopicManager.class);
 
+        SpringActorSystem system1 = context1.getBean(SpringActorSystem.class);
         SpringActorSystem system2 = context2.getBean(SpringActorSystem.class);
 
         // Create topic on node 1
         SpringTopicRef<ClusterMessage> topic1 = manager1.topic(
                         TopicName.of(ClusterMessage.class, "subscriberOnOneNodeCanReceiveFromAnotherNode-topic"))
                 .create();
-
-        Thread.sleep(1000); // Wait for topic creation to propagate
 
         SpringTopicRef<ClusterMessage> topic2 = manager2.topic(
                         TopicName.of(ClusterMessage.class, "subscriberOnOneNodeCanReceiveFromAnotherNode-topic"))
@@ -330,7 +346,10 @@ class SpringTopicClusterTest extends AbstractClusterTest {
                 .spawnAndWait();
 
         topic2.subscribe(sub2);
-        Thread.sleep(1000); // Wait for cluster propagation
+        TopicStats.awaitInstances(
+                topic1,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system1).scheduler(),
+                1);
 
         // Publish from node 1 - should reach node 2
         topic1.publish(new ClusterMessage("Cross-node message", "node-1"));

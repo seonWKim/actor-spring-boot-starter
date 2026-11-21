@@ -1,6 +1,7 @@
 package io.github.seonwkim.actor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
@@ -582,8 +583,6 @@ class HierarchicalSupervisionTest {
                     .toCompletableFuture()
                     .get();
 
-            Thread.sleep(100); // Wait for restart
-
             // Then: After restart, new actor instance should still have DI working
             String taskResult2 = worker.ask(new ChildWorkerActor.DoTask("task-after-restart"))
                     .withTimeout(Duration.ofSeconds(5))
@@ -721,10 +720,9 @@ class HierarchicalSupervisionTest {
             // Then: Supervisor confirms delegation
             assertThat(result).isEqualTo("Delegated to worker-1");
 
-            Thread.sleep(50); // Small delay for async task logging
-
             // Then: The child should have processed the task using the injected Spring service
-            assertThat(taskLogger.getTaskCount("worker-1")).isEqualTo(1);
+            await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(taskLogger.getTaskCount("worker-1"))
+                    .isEqualTo(1));
         }
 
         @Test
@@ -759,11 +757,11 @@ class HierarchicalSupervisionTest {
                     .get();
             assertThat(resultB).isEqualTo("Delegated to worker-b");
 
-            Thread.sleep(50); // Small delay for async task logging
-
             // Then: Both children should have processed their tasks independently
-            assertThat(taskLogger.getTaskCount("worker-a")).isEqualTo(1);
-            assertThat(taskLogger.getTaskCount("worker-b")).isEqualTo(1);
+            await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                assertThat(taskLogger.getTaskCount("worker-a")).isEqualTo(1);
+                assertThat(taskLogger.getTaskCount("worker-b")).isEqualTo(1);
+            });
         }
     }
 
@@ -801,8 +799,6 @@ class HierarchicalSupervisionTest {
                     .toCompletableFuture()
                     .get();
             assertThat(failResult).isEqualTo("Delegated to restart-worker");
-
-            Thread.sleep(100); // Wait for restart to complete
 
             // Then: Child should be restarted and able to process new tasks
             Object taskResult2 = supervisor
@@ -850,8 +846,6 @@ class HierarchicalSupervisionTest {
                     .toCompletableFuture()
                     .get();
 
-            Thread.sleep(100); // Wait for restart
-
             // Then: Actor should be responsive after restart (state reset verified by logs)
             Object result = supervisor
                     .ask(new ParentSupervisorActor.DelegateWork(
@@ -898,8 +892,6 @@ class HierarchicalSupervisionTest {
                     .toCompletableFuture()
                     .get();
             assertThat(failResult).isEqualTo("Delegated to stop-worker");
-
-            Thread.sleep(100); // Wait for child to stop
 
             // Then: Subsequent work delegation spawns a NEW worker (old one was stopped)
             // The new worker will handle the task, demonstrating that stop strategy terminated the old one
@@ -953,8 +945,6 @@ class HierarchicalSupervisionTest {
                     .get();
             assertThat(failResult).isEqualTo("Failing now");
 
-            Thread.sleep(100); // Wait for restart
-
             // Then: Actor should be restarted and able to process new tasks
             String afterRestartResult = worker.ask(new ChildWorkerActor.DoTask("task-after-restart"))
                     .withTimeout(Duration.ofSeconds(5))
@@ -1002,8 +992,6 @@ class HierarchicalSupervisionTest {
                     .toCompletableFuture()
                     .get();
 
-            Thread.sleep(100); // Wait for restart
-
             // Then: State should be reset to 0 after restart
             Integer stateAfter = worker.ask(new ChildWorkerActor.GetState())
                     .withTimeout(Duration.ofSeconds(5))
@@ -1030,7 +1018,6 @@ class HierarchicalSupervisionTest {
                     .execute()
                     .toCompletableFuture()
                     .get();
-            Thread.sleep(100);
 
             // Then: Actor should still be responsive
             String result1 = worker.ask(new ChildWorkerActor.DoTask("after-first-failure"))
@@ -1046,7 +1033,6 @@ class HierarchicalSupervisionTest {
                     .execute()
                     .toCompletableFuture()
                     .get();
-            Thread.sleep(100);
 
             // Then: Actor should still be responsive
             String result2 = worker.ask(new ChildWorkerActor.DoTask("after-second-failure"))
@@ -1062,15 +1048,11 @@ class HierarchicalSupervisionTest {
                     .execute()
                     .toCompletableFuture()
                     .get();
-            Thread.sleep(200);
-
             // Then: Actor should be stopped (ask will timeout or fail)
-            // We verify this by checking if the actor no longer exists
-            boolean exists = actorSystem
+            await().atMost(Duration.ofSeconds(5)).until(() -> !actorSystem
                     .exists(ChildWorkerActor.class, "top-level-limited-worker")
                     .toCompletableFuture()
-                    .get(5, TimeUnit.SECONDS);
-            assertThat(exists).isFalse();
+                    .get(5, TimeUnit.SECONDS));
         }
 
         @Test
@@ -1099,14 +1081,11 @@ class HierarchicalSupervisionTest {
                     .toCompletableFuture()
                     .get();
 
-            Thread.sleep(100); // Wait for actor to stop
-
             // Then: Actor should be stopped and no longer exist
-            boolean exists = actorSystem
+            await().atMost(Duration.ofSeconds(5)).until(() -> !actorSystem
                     .exists(ChildWorkerActor.class, "top-level-stop-worker")
                     .toCompletableFuture()
-                    .get(5, TimeUnit.SECONDS);
-            assertThat(exists).isFalse();
+                    .get(5, TimeUnit.SECONDS));
         }
 
         @Test
@@ -1146,8 +1125,6 @@ class HierarchicalSupervisionTest {
                     .execute()
                     .toCompletableFuture()
                     .get();
-
-            Thread.sleep(100);
 
             // Then: State should be preserved (not reset) - this is the key difference from restart
             Integer stateAfter = worker.ask(new ChildWorkerActor.GetState())
@@ -1200,14 +1177,11 @@ class HierarchicalSupervisionTest {
                     .toCompletableFuture()
                     .get();
 
-            Thread.sleep(100); // Wait for actor to stop
-
             // Then: Actor should be stopped (no restart without supervision)
-            boolean exists = actorSystem
+            await().atMost(Duration.ofSeconds(5)).until(() -> !actorSystem
                     .exists(ChildWorkerActor.class, "top-level-no-supervision-worker")
                     .toCompletableFuture()
-                    .get(5, TimeUnit.SECONDS);
-            assertThat(exists).isFalse();
+                    .get(5, TimeUnit.SECONDS));
         }
     }
 }

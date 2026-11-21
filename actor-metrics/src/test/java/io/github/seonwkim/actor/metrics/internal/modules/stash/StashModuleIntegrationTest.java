@@ -66,8 +66,6 @@ class StashModuleIntegrationTest {
 
     @Test
     void testStashSizeIncrementsWhenActorStashes() throws Exception {
-        Thread.sleep(200);
-
         // Send messages that will be stashed (actor starts in "waiting" state)
         actorSystem.tell("stash1");
         actorSystem.tell("stash2");
@@ -85,8 +83,6 @@ class StashModuleIntegrationTest {
 
     @Test
     void testStashSizeDecrementsOnUnstashAll() throws Exception {
-        Thread.sleep(200);
-
         actorSystem.tell("stash1");
         actorSystem.tell("stash2");
 

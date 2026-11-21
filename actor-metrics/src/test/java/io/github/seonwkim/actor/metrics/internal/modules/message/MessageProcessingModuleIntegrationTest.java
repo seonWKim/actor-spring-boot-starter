@@ -75,9 +75,6 @@ class MessageProcessingModuleIntegrationTest {
 
     @Test
     void testMessageProcessedCounterIncreases() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         double initialProcessed = metricsBackend.getCounterValue("actor.message.processed");
 
         // Create actor and send message
@@ -97,9 +94,6 @@ class MessageProcessingModuleIntegrationTest {
 
     @Test
     void testProcessingTimeIsRecorded() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         // Create actor and send message
         ActorRef actor = actorSystem.actorOf(Props.create(EchoActor.class), "timer-actor");
         actor.tell(new StringMessage("test"), ActorRef.noSender());
@@ -117,9 +111,6 @@ class MessageProcessingModuleIntegrationTest {
 
     @Test
     void testMultipleMessagesToSameActor() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         double initialProcessed = metricsBackend.getCounterValue("actor.message.processed");
 
         // Create actor and send multiple messages
@@ -141,9 +132,6 @@ class MessageProcessingModuleIntegrationTest {
 
     @Test
     void testDifferentMessageTypes() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         double initialProcessed = metricsBackend.getCounterValue("actor.message.processed");
 
         // Create actor and send different message types
@@ -165,9 +153,6 @@ class MessageProcessingModuleIntegrationTest {
 
     @Test
     void testMultipleActorsProcessingMessages() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         double initialProcessed = metricsBackend.getCounterValue("actor.message.processed");
 
         // Create multiple actors
@@ -206,9 +191,6 @@ class MessageProcessingModuleIntegrationTest {
 
     @Test
     void testMetricsHaveActorClassTag() throws Exception {
-        // Wait for system to stabilize
-        Thread.sleep(200);
-
         // Create actor and send message
         ActorRef actor = actorSystem.actorOf(Props.create(EchoActor.class), "tagged-actor");
         actor.tell(new StringMessage("test"), ActorRef.noSender());

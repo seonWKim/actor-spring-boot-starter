@@ -33,6 +33,11 @@ class SpringTopicTest {
     @Autowired
     private SpringTopicManager topicManager;
 
+    private org.apache.pekko.actor.typed.Scheduler scheduler() {
+        return io.github.seonwkim.actor.internal.PekkoActorSystem.raw(actorSystem)
+                .scheduler();
+    }
+
     @SpringBootApplication(scanBasePackages = "io.github.seonwkim.actor")
     static class TestApp {
         @Bean
@@ -84,7 +89,7 @@ class SpringTopicTest {
 
         // Subscribe and publish
         topic.subscribe(subscriber);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topic, scheduler(), 1);
 
         topic.publish(new TestMessage("Hello"));
 
@@ -120,7 +125,7 @@ class SpringTopicTest {
         topic.subscribe(sub1);
         topic.subscribe(sub2);
         topic.subscribe(sub3);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topic, scheduler(), 3);
 
         topic.publish(new TestMessage("Broadcast"));
 
@@ -146,14 +151,14 @@ class SpringTopicTest {
 
         // Subscribe and receive first message
         topic.subscribe(subscriber);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topic, scheduler(), 1);
         topic.publish(new TestMessage("First"));
         assertTrue(firstLatch.await(5, TimeUnit.SECONDS));
         assertEquals(1, messageCount.get());
 
         // Unsubscribe
         topic.unsubscribe(subscriber);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topic, scheduler(), 0);
 
         // Publish second message - should NOT be received
         topic.publish(new TestMessage("Second"));
@@ -193,11 +198,11 @@ class SpringTopicTest {
         topic.subscribe(sub1);
         topic.subscribe(sub2);
         topic.subscribe(sub3);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topic, scheduler(), 3);
 
         // Unsubscribe sub1
         topic.unsubscribe(sub1);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topic, scheduler(), 2);
 
         // Publish - only sub2 and sub3 should receive
         topic.publish(new TestMessage("After unsubscribe"));
@@ -238,7 +243,7 @@ class SpringTopicTest {
         // Subscribe twice
         topic.subscribe(subscriber);
         topic.subscribe(subscriber);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topic, scheduler(), 1);
 
         topic.publish(new TestMessage("Message"));
         assertTrue(latch.await(5, TimeUnit.SECONDS));
@@ -289,7 +294,7 @@ class SpringTopicTest {
                 .spawnAndWait();
 
         topic1.subscribe(subscriber);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topic1, scheduler(), 1);
 
         topic2.publish(new TestMessage("Test"));
         assertTrue(latch.await(5, TimeUnit.SECONDS));
@@ -321,7 +326,8 @@ class SpringTopicTest {
 
         topicA.subscribe(subA);
         topicB.subscribe(subB);
-        Thread.sleep(200);
+        TopicStats.awaitLocalSubscribers(topicA, scheduler(), 1);
+        TopicStats.awaitLocalSubscribers(topicB, scheduler(), 1);
 
         // Publish to A
         topicA.publish(new TestMessage("To A"));
