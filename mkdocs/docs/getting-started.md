@@ -7,7 +7,7 @@ This page takes you from an empty Spring Boot application to an actor that answe
 - Java 21 or higher
 - Spring Boot 3.5 or higher
 
-Spring Boot 2 users stay on the 0.x line (`spring-boot-starter-actor`). See [Migrating from 0.x](migrating-from-0x.md).
+Spring Boot 2 users stay on the 0.x line (`spring-boot-starter-actor`).
 
 ## 1. Add the dependency
 

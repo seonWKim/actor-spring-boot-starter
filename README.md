@@ -129,8 +129,6 @@ All are `io.github.seonwkim:<module>:1.0.0`.
 | `actor-kotlin` | Kotlin coroutines and reified helpers |
 | `actor-test` | `@ActorTest` and cluster test helpers |
 
-Coming from 0.x (`spring-boot-starter-actor`)? See the [migration guide](https://seonwkim.github.io/actor-spring-boot-starter/migrating-from-0x/).
-
 ## Learn more
 
 - [Documentation](https://seonwkim.github.io/actor-spring-boot-starter/): guides for every feature and a configuration reference
