@@ -139,10 +139,11 @@ class OverlaysTest {
     @ParameterizedTest
     @MethodSource("all")
     @SuppressWarnings("unchecked")
-    void gracePeriodLeavesTimeToDrainHttpAfterPreStopAndActorShutdown(String dir, String suffix) throws Exception {
+    void gracePeriodCoversPreStopHttpDrainAndActorShutdown(String dir, String suffix) throws Exception {
         List<Map<String, Object>> resources = render(dir);
-        Map<String, Object> actor = (Map<String, Object>) get(
-                applicationYaml(resource(resources, "ConfigMap", "spring-actor-config" + suffix)), "spring", "actor");
+        Map<String, Object> application =
+                applicationYaml(resource(resources, "ConfigMap", "spring-actor-config" + suffix));
+        Map<String, Object> actor = (Map<String, Object>) get(application, "spring", "actor");
         int grace = (Integer) get(
                 resource(resources, "Deployment", "spring-actor" + suffix),
                 "spec",
@@ -158,8 +159,13 @@ class OverlaysTest {
                 ? 20 // spring.actor.shutdown.timeout's default
                 : Duration.parse("PT" + timeout.toString().toUpperCase()).toSeconds();
 
-        // Spring Boot drains HTTP requests before the actor system shuts down: leave it 10s.
-        assertThat(grace - preStopSeconds - shutdownSeconds).isGreaterThanOrEqualTo(10);
+        // Spring Boot drains HTTP requests before the actor system shuts down, for up to this long.
+        Object drain = get(application, "spring", "lifecycle", "timeout-per-shutdown-phase");
+        long drainSeconds = drain == null
+                ? 30 // Spring Boot's default
+                : Duration.parse("PT" + drain.toString().toUpperCase()).toSeconds();
+
+        assertThat(preStopSeconds + drainSeconds + shutdownSeconds).isLessThanOrEqualTo(grace);
     }
 
     @ParameterizedTest
