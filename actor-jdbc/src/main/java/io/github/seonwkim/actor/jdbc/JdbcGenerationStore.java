@@ -69,10 +69,7 @@ public final class JdbcGenerationStore implements GenerationStore {
             return new ActivationResult(Outcome.EPOCH_MISMATCH, current);
         }
         ActiveGeneration next = new ActiveGeneration(
-                color,
-                expectedEpoch + 1,
-                operationId,
-                Instant.ofEpochMilli(Jdbc.now(connection).getTime()));
+                color, expectedEpoch + 1, operationId, Instant.ofEpochMilli(Jdbc.nowMillis(connection)));
         try (PreparedStatement insert = connection.prepareStatement(INSERT)) {
             insert.setString(1, deployment);
             insert.setString(2, color);

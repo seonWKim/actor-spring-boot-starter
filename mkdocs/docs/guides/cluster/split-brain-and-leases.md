@@ -102,7 +102,7 @@ the `actor-jdbc` jar: `io/github/seonwkim/actor/jdbc/schema-{h2,postgresql,mysql
 CREATE TABLE IF NOT EXISTS actor_lease (
     lease_name VARCHAR(500) NOT NULL,
     owner VARCHAR(500) NOT NULL,
-    expires_at TIMESTAMP(3) NOT NULL,
+    expires_at BIGINT NOT NULL,
     PRIMARY KEY (lease_name)
 );
 ```
