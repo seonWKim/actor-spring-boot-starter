@@ -60,6 +60,8 @@ dependencies {
     // Several nodes creating the actor tables at once on PostgreSQL (SchemaScriptInitializerTest).
     testImplementation(project(":actor-jdbc"))
     testImplementation("org.springframework:spring-jdbc")
+    testRuntimeOnly("com.h2database:h2")
+    testRuntimeOnly("com.zaxxer:HikariCP")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.postgresql:postgresql")

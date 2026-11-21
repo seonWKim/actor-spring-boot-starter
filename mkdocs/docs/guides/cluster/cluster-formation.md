@@ -50,7 +50,7 @@ Discovery uses Pekko Cluster Bootstrap and the management HTTP server, plus the 
     </dependency>
     ```
 
-`actor-jdbc` uses the application's `DataSource`, and `actor-redis` its `RedisConnectionFactory`
+`actor-jdbc` uses the application's `DataSource` (or [one of its own](#a-separate-datasource)), and `actor-redis` its `RedisConnectionFactory`
 (`spring-boot-starter-data-redis`).
 
 ### JDBC
@@ -102,6 +102,39 @@ old rows at any time.
 alike. Tables created before this version have `last_seen TIMESTAMP` (and `actor_lease.expires_at
 TIMESTAMP(3)`): stop the nodes, drop `actor_peer` and `actor_lease`, and let them be created again. Both
 hold only live entries, which the nodes write again within a heartbeat.
+
+#### A separate `DataSource`
+
+By default the JDBC stores (peers, leases, generations) and the [event journal](../data/event-sourcing.md)
+share the application's `DataSource` and its pool. To give them a database, a user or a pool of their own,
+declare a `DataSource` bean marked `@ActorDataSource`:
+
+```java
+@Configuration
+class ActorDatabaseConfig {
+
+    // defaultCandidate = false: Spring Boot still creates the application's DataSource from spring.datasource.*
+    @Bean(defaultCandidate = false)
+    @ActorDataSource
+    @ConfigurationProperties("actor.datasource")
+    HikariDataSource actorDataSource() {
+        return DataSourceBuilder.create().type(HikariDataSource.class).build();
+    }
+}
+```
+
+```yaml
+actor:
+  datasource:
+    jdbc-url: jdbc:postgresql://db:5432/actors
+    username: actors
+    password: ${ACTOR_DB_PASSWORD}
+    maximum-pool-size: 5
+```
+
+The starter then creates its tables there, the journal's threads match that pool, and lease renewals and
+heartbeats no longer compete with the application's queries for a connection. Projections stay on the
+application's `DataSource`, because a projection writes its offset in the same transaction as its read model.
 
 ### Redis
 
@@ -303,10 +336,11 @@ write these tables.
 
 The built-in stores use the application's `DataSource` and `RedisConnectionFactory`, so these rights are the
 rights of the user the application connects as. If the application needs more rights on the same server,
-give the stores their own connection: declare `PeerRegistry` and `LeaseStore` beans built on a separate
-`DataSource` or `RedisConnectionFactory` (`new JdbcPeerRegistry(dataSource)`, `new JdbcLeaseStore(dataSource)`,
-`new RedisPeerRegistry(connectionFactory, ttl)`, `new RedisLeaseStore(connectionFactory)`) and set
-`discovery.method: custom` and `lease.store: custom` (see [Your own store](#your-own-store)).
+give the stores their own connection. For JDBC, declare an [`@ActorDataSource`](#a-separate-datasource)
+connecting as a user with only these rights. For Redis, declare `PeerRegistry` and `LeaseStore` beans built
+on a separate `RedisConnectionFactory` (`new RedisPeerRegistry(connectionFactory, ttl)`,
+`new RedisLeaseStore(connectionFactory)`) and set `discovery.method: custom` and `lease.store: custom` (see
+[Your own store](#your-own-store)).
 
 ## Related
 

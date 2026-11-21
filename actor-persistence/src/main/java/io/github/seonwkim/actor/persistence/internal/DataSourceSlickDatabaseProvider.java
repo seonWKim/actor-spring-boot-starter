@@ -1,6 +1,7 @@
 package io.github.seonwkim.actor.persistence.internal;
 
 import com.typesafe.config.Config;
+import io.github.seonwkim.actor.internal.ActorDataSources;
 import io.github.seonwkim.actor.internal.SpringBeansSetup;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
@@ -20,8 +21,8 @@ import slick.util.AsyncExecutor;
 import slick.util.AsyncExecutor$;
 
 /**
- * Gives the journal, the snapshot store and the read journal the application's {@code DataSource}
- * bean instead of a connection pool of their own. Pekko creates it by reflection, once per actor
+ * Gives the journal, the snapshot store and the read journal the {@code @ActorDataSource} bean, else the
+ * application's {@code DataSource}, instead of a connection pool of their own. Pekko creates it by reflection, once per actor
  * system, from {@code pekko-persistence-jdbc.database-provider-fqcn}.
  */
 public final class DataSourceSlickDatabaseProvider implements SlickDatabaseProvider {
@@ -46,13 +47,12 @@ public final class DataSourceSlickDatabaseProvider implements SlickDatabaseProvi
     }
 
     private SlickDatabase create() {
-        DataSource dataSource = system.settings()
+        DataSource dataSource = ActorDataSources.resolve(system.settings()
                 .setup()
                 .get(SpringBeansSetup.class)
                 .orElseThrow(() -> new IllegalStateException(
                         "actor-persistence needs an actor system built by the starter (it reads the DataSource bean)"))
-                .beanFactory()
-                .getBean(DataSource.class);
+                .beanFactory());
         int threads = JdbcDatabase.poolSize(dataSource);
         AsyncExecutor executor =
                 AsyncExecutor$.MODULE$.apply("spring-actor-persistence", threads, threads, 1000, threads);

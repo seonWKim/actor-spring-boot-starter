@@ -4,6 +4,7 @@ import io.github.seonwkim.actor.autoconfigure.ActorConfiguration;
 import io.github.seonwkim.actor.autoconfigure.ActorProperties;
 import io.github.seonwkim.actor.autoconfigure.ConditionalOnActorEnabled;
 import io.github.seonwkim.actor.autoconfigure.SchemaScriptInitializer;
+import io.github.seonwkim.actor.internal.ActorDataSources;
 import io.github.seonwkim.actor.jdbc.JdbcGenerationStore;
 import io.github.seonwkim.actor.jdbc.JdbcLeaseStore;
 import io.github.seonwkim.actor.jdbc.JdbcPeerRegistry;
@@ -14,6 +15,7 @@ import io.github.seonwkim.actor.spi.GenerationStore;
 import io.github.seonwkim.actor.spi.LeaseStore;
 import io.github.seonwkim.actor.spi.PeerRegistry;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.AnyNestedCondition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -46,7 +48,7 @@ public class StoreConfiguration {
     private static final String LEASE_STORE = "spring.actor.cluster.lease.store";
     private static final String GENERATION_STORE = "spring.actor.generation.store";
 
-    /** The actor_peer and actor_lease tables on the application's DataSource. */
+    /** The actor_peer, actor_lease and actor_generation tables on the @ActorDataSource, else the application's DataSource. */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(
             name = {
@@ -76,29 +78,30 @@ public class StoreConfiguration {
         @Bean
         @ConditionalOnProperty(name = DISCOVERY_METHOD, havingValue = "jdbc")
         @ConditionalOnMissingBean(PeerRegistry.class)
-        JdbcPeerRegistry jdbcPeerRegistry(DataSource dataSource, ActorTableInitializer tableInitializer) {
+        JdbcPeerRegistry jdbcPeerRegistry(ListableBeanFactory beans, ActorTableInitializer tableInitializer) {
             // Taking the initializer makes the tables exist before the store is used.
-            return new JdbcPeerRegistry(dataSource);
+            return new JdbcPeerRegistry(ActorDataSources.resolve(beans));
         }
 
         @Bean
         @ConditionalOnProperty(name = LEASE_STORE, havingValue = "jdbc")
         @ConditionalOnMissingBean(LeaseStore.class)
-        JdbcLeaseStore jdbcLeaseStore(DataSource dataSource, ActorTableInitializer tableInitializer) {
-            return new JdbcLeaseStore(dataSource);
+        JdbcLeaseStore jdbcLeaseStore(ListableBeanFactory beans, ActorTableInitializer tableInitializer) {
+            return new JdbcLeaseStore(ActorDataSources.resolve(beans));
         }
 
         @Bean
         @ConditionalOnProperty(name = GENERATION_STORE, havingValue = "jdbc")
         @ConditionalOnMissingBean(GenerationStore.class)
-        JdbcGenerationStore jdbcGenerationStore(DataSource dataSource, ActorTableInitializer tableInitializer) {
-            return new JdbcGenerationStore(dataSource);
+        JdbcGenerationStore jdbcGenerationStore(ListableBeanFactory beans, ActorTableInitializer tableInitializer) {
+            return new JdbcGenerationStore(ActorDataSources.resolve(beans));
         }
 
         @Bean
         @ConditionalOnMissingBean
-        ActorTableInitializer actorTableInitializer(DataSource dataSource, ActorProperties properties) {
-            return new ActorTableInitializer(dataSource, properties.getJdbc().getInitializeSchema());
+        ActorTableInitializer actorTableInitializer(ListableBeanFactory beans, ActorProperties properties) {
+            return new ActorTableInitializer(
+                    ActorDataSources.resolve(beans), properties.getJdbc().getInitializeSchema());
         }
 
         /** Creates the actor-jdbc tables from its schema file for the database in use. */

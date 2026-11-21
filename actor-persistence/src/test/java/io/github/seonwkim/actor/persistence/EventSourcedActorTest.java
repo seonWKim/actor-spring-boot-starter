@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import io.github.seonwkim.actor.ActorDataSource;
 import io.github.seonwkim.actor.AskCommand;
 import io.github.seonwkim.actor.EnableActorSupport;
 import io.github.seonwkim.actor.SpringActor;
@@ -17,14 +18,19 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -120,6 +126,39 @@ class EventSourcedActorTest {
                     .cause()
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage("insufficient funds");
+        }
+    }
+
+    @Test
+    void theJournalIsOnTheActorDataSourceAndTheApplicationKeepsItsOwn() throws Exception {
+        String actorDatabase = "jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1";
+        try (ConfigurableApplicationContext app = new SpringApplicationBuilder(
+                        TestApp.class, AccountActor.class, ActorDatabase.class)
+                .web(WebApplicationType.NONE)
+                .properties(h2(UUID.randomUUID().toString()))
+                .properties("test.actor-database=" + actorDatabase)
+                .run()) {
+            SpringActorHandle<Command> account = spawn(app, AccountActor.class, "alice");
+            assertThat(ask(account, new Deposit(5))).isEqualTo(5L);
+
+            JdbcTemplate actorJdbc = new JdbcTemplate(new DriverManagerDataSource(actorDatabase));
+            assertThat(actorJdbc.queryForObject("SELECT COUNT(*) FROM \"event_journal\"", Integer.class))
+                    .isEqualTo(1);
+            // The application's DataSource is still Boot's, from spring.datasource.url, without the journal.
+            JdbcTemplate applicationJdbc = app.getBean(JdbcTemplate.class);
+            assertThat(applicationJdbc.queryForObject(
+                            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'event_journal'",
+                            Integer.class))
+                    .isZero();
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class ActorDatabase {
+        @Bean(defaultCandidate = false)
+        @ActorDataSource
+        DataSource actorDataSource(@Value("${test.actor-database}") String url) {
+            return new DriverManagerDataSource(url);
         }
     }
 

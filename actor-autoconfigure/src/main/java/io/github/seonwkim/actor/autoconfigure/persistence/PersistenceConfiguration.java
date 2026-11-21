@@ -4,8 +4,10 @@ import io.github.seonwkim.actor.autoconfigure.ActorConfiguration;
 import io.github.seonwkim.actor.autoconfigure.ActorProperties;
 import io.github.seonwkim.actor.autoconfigure.ConditionalOnActorEnabled;
 import io.github.seonwkim.actor.autoconfigure.SchemaScriptInitializer;
+import io.github.seonwkim.actor.internal.ActorDataSources;
 import io.github.seonwkim.actor.persistence.internal.PersistenceModuleSupport;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -14,7 +16,7 @@ import org.springframework.context.annotation.Bean;
 
 /**
  * Event-sourced actors ({@code actor-persistence}): creates the journal and snapshot tables on the
- * application's {@code DataSource} per {@code spring.actor.persistence.initialize-schema}. The actor
+ * {@code @ActorDataSource}, else the application's {@code DataSource}, per {@code spring.actor.persistence.initialize-schema}. The actor
  * system starts after them ({@link ActorSystemDependsOnDatabaseInitialization}).
  */
 @AutoConfiguration(
@@ -30,9 +32,10 @@ public class PersistenceConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    PersistenceTableInitializer actorPersistenceTableInitializer(DataSource dataSource, ActorProperties properties) {
+    PersistenceTableInitializer actorPersistenceTableInitializer(
+            ListableBeanFactory beans, ActorProperties properties) {
         return new PersistenceTableInitializer(
-                dataSource, properties.getPersistence().getInitializeSchema());
+                ActorDataSources.resolve(beans), properties.getPersistence().getInitializeSchema());
     }
 
     /** Creates the actor-persistence tables from its schema file for the database in use. */
