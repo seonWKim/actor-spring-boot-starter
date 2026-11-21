@@ -51,6 +51,8 @@ class ActorPropertiesTest {
                         "spring.actor.name=orders",
                         "spring.actor.remote.hostname=10.0.0.7",
                         "spring.actor.remote.port=25521",
+                        "spring.actor.remote.bind-hostname=0.0.0.0",
+                        "spring.actor.remote.bind-port=25600",
                         "spring.actor.cluster.seed-nodes=pekko://orders@10.0.0.7:25521,pekko://orders@10.0.0.8:25521",
                         "spring.actor.cluster.roles=api,worker")
                 .run(context -> {
@@ -63,6 +65,9 @@ class ActorPropertiesTest {
                             .isEqualTo("10.0.0.7");
                     assertThat(config.getInt("pekko.remote.artery.canonical.port"))
                             .isEqualTo(25521);
+                    assertThat(config.getString("pekko.remote.artery.bind.hostname"))
+                            .isEqualTo("0.0.0.0");
+                    assertThat(config.getInt("pekko.remote.artery.bind.port")).isEqualTo(25600);
                     assertThat(config.getStringList("pekko.cluster.seed-nodes"))
                             .containsExactly("pekko://orders@10.0.0.7:25521", "pekko://orders@10.0.0.8:25521");
                     assertThat(config.getStringList("pekko.cluster.roles")).containsExactly("api", "worker");

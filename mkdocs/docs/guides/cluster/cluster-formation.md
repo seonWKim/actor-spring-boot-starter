@@ -227,7 +227,10 @@ you set rather than comparing the whole set.
   peers there. `spring.actor.pekko.management.http.hostname` must be an address other nodes can reach (the
   default is the machine's address). With `jdbc` or `redis` discovery the port may be `0`: the node registers
   the port it bound.
-- **Remoting port** (`spring.actor.remote.port`, default `25520`) between all nodes.
+- **Remoting port** (`spring.actor.remote.port`, default `25520`) between all nodes. Other nodes reach this one
+  at `spring.actor.remote.hostname`. When that is not an address on the host, such as a StatefulSet pod's DNS
+  name that may not resolve yet at startup, NAT or a load balancer, set `spring.actor.remote.bind-hostname: 0.0.0.0`
+  so the node listens on every interface (`bind-port` likewise when the port is mapped).
 - **The store** (database or Redis) from every node.
 - The nodes of one cluster use the same `spring.actor.name`: it is the service name their entries are stored
   under. With `spring.actor.generation.color` set, `jdbc`, `redis` and `custom` store them under

@@ -67,7 +67,6 @@ spec:
             - >-
               exec java -XX:MaxRAMPercentage=50 -XX:+ExitOnOutOfMemoryError -jar /app/app.jar
               --sharded-chat.node=$(( ${HOSTNAME##*-} + 0 + 1 ))
-              --spring.actor.pekko.remote.artery.bind.hostname=0.0.0.0
               --spring.actor.pekko.management.http.hostname=${POD_IP}
               --spring.actor.pekko.management.http.port=7626
               --spring.actor.pekko.management.http.bind-hostname=0.0.0.0
@@ -80,6 +79,7 @@ spec:
             - { name: SPRING_ACTOR_CLUSTER_JOIN, value: discovery }
             - { name: SPRING_ACTOR_CLUSTER_DISCOVERY_METHOD, value: jdbc }
             - { name: SPRING_ACTOR_REMOTE_HOSTNAME, value: $(POD_IP) }
+            - { name: SPRING_ACTOR_REMOTE_BIND_HOSTNAME, value: 0.0.0.0 }
             - { name: SERVER_PORT, value: "8080" }
             - { name: SPRING_ACTOR_REMOTE_PORT, value: "25520" }
             - { name: SPRING_ACTOR_GENERATION_COLOR, value: blue }

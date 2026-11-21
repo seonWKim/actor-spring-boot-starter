@@ -44,6 +44,8 @@ Used with `provider: remote` or `provider: cluster`.
 |---|---|---|---|
 | `spring.actor.remote.hostname` | Pekko's default | `pekko.remote.artery.canonical.hostname` | Host name or address other nodes use to reach this node. |
 | `spring.actor.remote.port` | Pekko's default (`25520`) | `pekko.remote.artery.canonical.port` | Port this node listens on for other nodes, `0` to `65535`. `0` picks a free port. |
+| `spring.actor.remote.bind-hostname` | `hostname` | `pekko.remote.artery.bind.hostname` | Address to listen on when `hostname` is not one of this host's addresses (a DNS name, NAT, a load balancer). Usually `0.0.0.0`. |
+| `spring.actor.remote.bind-port` | `port` | `pekko.remote.artery.bind.port` | Port to listen on when it differs from `port` (NAT, port mapping). |
 
 ## Cluster
 
