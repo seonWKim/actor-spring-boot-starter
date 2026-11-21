@@ -57,6 +57,12 @@ dependencies {
     // InMemoryGenerationStore for the generation endpoint's tests.
     testImplementation(project(":actor-test"))
     testImplementation("org.awaitility:awaitility")
+    // Several nodes creating the actor tables at once on PostgreSQL (SchemaScriptInitializerTest).
+    testImplementation(project(":actor-jdbc"))
+    testImplementation("org.springframework:spring-jdbc")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
+    testRuntimeOnly("org.postgresql:postgresql")
     // spring.actor.cluster.join=discovery checks that Cluster Bootstrap is present.
     testRuntimeOnly("org.apache.pekko:pekko-management-cluster-bootstrap_3:${pekkoManagementVersion}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
