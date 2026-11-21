@@ -5,6 +5,11 @@ builds on the `messages` `Flux` of [Reactor Streams](reactor-streams.md): a clie
 actors send to, and when the client disconnects, the reference stops. An actor that `watch`es it receives
 `ActorTerminated` and can forget the client or stop itself.
 
+!!! info "Incubating"
+    `actor-streams` is incubating: its API may still change in a minor release, without a deprecation
+    period, while it collects feedback. Its types carry `@Incubating`. The compatibility promise covers
+    the core and cluster API.
+
 All three need `actor-streams`:
 
 === "Gradle"

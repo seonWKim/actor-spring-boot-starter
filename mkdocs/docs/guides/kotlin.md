@@ -4,6 +4,11 @@ The `actor-kotlin` module adds a thin Kotlin layer over the Java API: a `behavio
 behaviors, `suspend` functions instead of `CompletionStage`, reified type parameters instead of `Class`
 arguments, and `kotlin.time.Duration` timeouts. Each function calls the Java API, so everything in the other guides applies unchanged.
 
+!!! info "Incubating"
+    `actor-kotlin` is incubating: its API may still change in a minor release, without a deprecation
+    period, while it collects feedback. The compatibility promise covers
+    the core and cluster API.
+
 ## Installation
 
 Add `actor-kotlin` next to the starter. It brings `kotlinx-coroutines-core`; Spring Boot manages its

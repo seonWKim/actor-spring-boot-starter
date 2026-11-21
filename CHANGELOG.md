@@ -28,6 +28,13 @@
   Reading the endpoint no longer refreshes the node's read, so a pipeline verifies a switch by polling each
   node until all report the new epoch. The Kubernetes example's `blue-green.sh verify` does that.
 
+### Compatibility
+
+- **Incubating modules (#282).** `actor-persistence`, `actor-projection`, `actor-streams`, `actor-metrics`,
+  `actor-test` and `actor-kotlin` are incubating: their API may change in a minor release, without a deprecation
+  period, while they collect feedback. Their public packages carry the new `@Incubating` annotation, and their
+  guides say so. The compatibility promise covers the core and cluster API, including the JDBC and Redis stores.
+
 ### Fixes
 
 - **`spring.actor.generation.*` stays out of the Pekko config (#254).** The `generation` keys were also passed
