@@ -68,6 +68,7 @@ Used with `join: discovery`.
 | `spring.actor.cluster.discovery.method` | none | `pekko.discovery.method` | Where peers are found: `jdbc` (needs `actor-jdbc`), `redis` (needs `actor-redis`), `custom` (your `PeerRegistry` bean), `kubernetes-api`, `dns` or `config`. Required with `join: discovery`. A `PeerRegistry` bean of your own replaces the `jdbc` and `redis` stores. |
 | `spring.actor.cluster.discovery.heartbeat-interval` | `5s` | none | How often a node renews its own entry (`jdbc`, `redis`, `custom`). Must be positive. |
 | `spring.actor.cluster.discovery.ttl` | `30s` | none | How long an entry counts as alive after its last renewal (`jdbc`, `redis`, `custom`). Must be positive. |
+| `spring.actor.cluster.discovery.service-name` | `spring.actor.name`; `<name>-<color>` with `spring.actor.generation.color` and `jdbc`, `redis` or `custom` | none | The name a node registers and looks up its peers under (Pekko's `contact-point-discovery.service-name`). |
 
 ### Downing (split brain resolver)
 

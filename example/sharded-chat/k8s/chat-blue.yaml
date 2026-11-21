@@ -1,6 +1,6 @@
 # The blue cluster: a StatefulSet, so each pod has a stable name, and so a stable node number. The pods
-# find each other through the actor_peer table under their system name (sharded-chat-blue), so blue
-# never meets the other color; addresses are pod IPs, so a restarted pod is never reached at an old one.
+# find each other through the actor_peer table under sharded-chat-blue (the system name and the color),
+# so blue never meets the other color; addresses are pod IPs, so a restarted pod is never reached at an old one.
 # No replicas here: blue-green.sh owns them (deploy, retire) and kubectl scale changes them, so applying
 # these manifests again never undoes a scale. bin/k8s-up creates it with 0. Pod chat-blue-<i> is node 0+i+1.
 apiVersion: v1
@@ -77,9 +77,6 @@ spec:
               valueFrom: { fieldRef: { fieldPath: status.podIP } }
             # Discovery (cluster-formation guide): each pod writes its entry to actor_peer and Cluster
             # Bootstrap joins the pods it lists, or forms the cluster when none is in one yet.
-            - { name: SPRING_ACTOR_NAME, value: sharded-chat-blue }
-            # The generation record both colors share (it defaults to the system name, which differs).
-            - { name: SPRING_ACTOR_GENERATION_NAME, value: sharded-chat }
             - { name: SPRING_ACTOR_CLUSTER_JOIN, value: discovery }
             - { name: SPRING_ACTOR_CLUSTER_DISCOVERY_METHOD, value: jdbc }
             - { name: SPRING_ACTOR_REMOTE_HOSTNAME, value: $(POD_IP) }

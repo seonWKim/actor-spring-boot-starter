@@ -208,6 +208,45 @@ class ActorPropertiesTest {
                 });
     }
 
+    // Blue and green share the store: under one name, green would be handed blue's nodes and join them.
+    @Test
+    void eachColorRegistersInTheStoreUnderItsOwnName() {
+        runner.withPropertyValues(
+                        "spring.actor.name=orders",
+                        "spring.actor.generation.color=green",
+                        "spring.actor.cluster.join=discovery",
+                        "spring.actor.cluster.discovery.method=jdbc")
+                .run(context -> assertThat(pekkoConfig(context)
+                                .getString("pekko.management.cluster.bootstrap.contact-point-discovery.service-name"))
+                        .isEqualTo("orders-green"));
+    }
+
+    // Kubernetes API discovery selects pods by the service name (app=<name>): a color suffix would find none.
+    @Test
+    void aColorLeavesTheServiceNameOfKubernetesApiDiscoveryAlone() {
+        runner.withPropertyValues(
+                        "spring.actor.name=orders",
+                        "spring.actor.generation.color=green",
+                        "spring.actor.cluster.join=discovery",
+                        "spring.actor.cluster.discovery.method=kubernetes-api")
+                .run(context -> assertThat(pekkoConfig(context)
+                                .getString("pekko.management.cluster.bootstrap.contact-point-discovery.service-name"))
+                        .isNotEqualTo("orders-green"));
+    }
+
+    @Test
+    void aServiceNameSetForDiscoveryReplacesTheColorsName() {
+        runner.withPropertyValues(
+                        "spring.actor.name=orders",
+                        "spring.actor.generation.color=green",
+                        "spring.actor.cluster.join=discovery",
+                        "spring.actor.cluster.discovery.method=redis",
+                        "spring.actor.cluster.discovery.service-name=orders-canary")
+                .run(context -> assertThat(pekkoConfig(context)
+                                .getString("pekko.management.cluster.bootstrap.contact-point-discovery.service-name"))
+                        .isEqualTo("orders-canary"));
+    }
+
     @Test
     void discoveryThroughDnsUsesPekkosMethodName() {
         runner.withPropertyValues("spring.actor.cluster.join=discovery", "spring.actor.cluster.discovery.method=dns")
