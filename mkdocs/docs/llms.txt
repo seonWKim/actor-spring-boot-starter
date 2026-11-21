@@ -66,6 +66,7 @@ The full text of the Getting Started page and every guide, with code inlined, is
 - [Cluster](https://seonwkim.github.io/actor-spring-boot-starter/examples/cluster/): sharded actors and a singleton across three nodes
 - [Synchronization](https://seonwkim.github.io/actor-spring-boot-starter/examples/synchronization/): an actor counter compared with database and Redis locks
 - [Chat](https://seonwkim.github.io/actor-spring-boot-starter/examples/chat/): real-time chat with WebSocket, sharded rooms and pub/sub topics
+- [Sharded Chat](https://seonwkim.github.io/actor-spring-boot-starter/examples/sharded-chat/): a live view of sharded rooms and users on three nodes, a singleton, failover and a blue-green deployment
 - [AI Agent](https://seonwkim.github.io/actor-spring-boot-starter/examples/agent/): an AI agent as an actor: tools, approvals, snapshots
 - [Persistence](https://seonwkim.github.io/actor-spring-boot-starter/examples/persistence/): actor state with JPA: current state, event log and snapshots
 - [Metrics](https://seonwkim.github.io/actor-spring-boot-starter/examples/metrics/): actor metrics through Micrometer and Prometheus

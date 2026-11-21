@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# bin/start-node <n>: starts node n again (a node you stopped), as its color's current version. It
+# joins its color's running cluster. Nodes 1 to 3 are blue, 4 to 6 green.
+set -euo pipefail
+curl -s -X POST "http://localhost:8080/api/cluster/nodes/${1:?usage: bin/start-node <n>}/start"; echo

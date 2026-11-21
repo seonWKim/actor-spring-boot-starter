@@ -1,0 +1,53 @@
+/*
+ * Design tokens: the only file under web/ that may hold hex colours.
+ * Tailwind turns each --color-* into utilities (bg-surface, text-ink, border-line, ...).
+ * The default palette is cleared so every colour on the page comes from here.
+ */
+@theme {
+  --color-*: initial;
+
+  --color-canvas: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-line: #d8dde3;
+  --color-ink: #1b1f24;
+  --color-muted: #5b6470;
+  --color-crash: #c62828;
+  --color-flash: #ffd54a;
+}
+
+/*
+ * The chat canvas: a dark background in every theme. `static` emits each one as a CSS variable even
+ * when no utility uses it, because the canvas reads them at runtime.
+ * Text on --color-ring-bg: ring-ink is about 14:1 and ring-muted about 7:1.
+ */
+@theme static {
+  --color-ring-bg: #0b1020;
+  --color-ring-ink: #dce7f5;
+  --color-ring-muted: #93a6c2;
+
+  /*
+   * One colour per node: nodes 1 to 3 are the blue cluster, three blues; 4 to 6 the green cluster,
+   * three greens. Each circle also has its label. Every one is about 5:1 or more on --color-ring-bg.
+   */
+  --color-node-1: #56B4E9;
+  --color-node-2: #3B82F6;
+  --color-node-3: #A5D8FF;
+  --color-node-4: #22C55E;
+  --color-node-5: #009E73;
+  --color-node-6: #A7F3D0;
+  /* The band of each deployment color around its nodes. */
+  --color-blue: #56B4E9;
+  --color-green: #22C55E;
+  /* A message someone sent by hand from the page: white, so it stands apart from every node colour. */
+  --color-manual: #ffffff;
+  --color-actor: #4aa3ff;
+
+  /* The bottom log console: dark and monospace; timeouts and errors have their own colours. */
+  --color-log-bg: #070b16;
+  --color-log-line: #26324d;
+  --color-log-hover: #16213a;
+  --color-log-ink: #c4d2e6;
+  --color-log-muted: #7f92b0;
+  --color-log-timeout: #ffd166;
+  --color-log-error: #ff6b6b;
+}

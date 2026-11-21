@@ -25,7 +25,34 @@ Build stateful services like chat, sessions, workflows and long-running AI agent
 - **Production:** Actuator health, Micrometer metrics, tracing, Grafana dashboards, rolling/canary/blue-green deployments
 - **Kotlin** coroutines, and an **`@ActorTest`** slice for tests
 
-<img src="mkdocs/docs/chat.gif" alt="Distributed chat example"/>
+## Run the demo
+
+The [sharded chat example](example/sharded-chat) draws a live cluster in the browser: every room and user
+is a sharded actor spread over the nodes, a cluster singleton runs the simulation, and every message
+travels between the nodes as you watch. You need Java 21 and Node.js 20+.
+
+```bash
+git clone https://github.com/seonWKim/actor-spring-boot-starter.git
+cd actor-spring-boot-starter/example/sharded-chat
+(cd web && npm install)   # once: the page's dependencies
+bin/start                 # builds the apps and starts blue's 3 nodes in the background
+```
+
+Then open **http://localhost:8080** in a browser (the cluster is ready in about 30 seconds):
+
+<img src="mkdocs/docs/chat.gif" alt="Sharded chat example"/>
+
+- Click a room or a user to see its shard, the node it runs on and why, and every message it sent.
+- Click a node's label to stop it: its rooms and users start on the other nodes within a few seconds.
+- In the ☰ menu, deploy green (v2), activate it, roll back to blue, and retire the old color. The
+  inactive color pauses and keeps its state; activation is a compare-and-set on the generation's epoch.
+  **+ node** adds a node to a color.
+- `bin/stop` stops everything.
+
+Logs stay in memory, the last 2000 lines of each process: `bin/logs` prints the control app's, `bin/logs 2`
+node 2's. The
+[example's README](example/sharded-chat/README.md) explains how it is built and lists the HTTP API and the
+settings.
 
 ## Quick start
 
@@ -104,7 +131,7 @@ Coming from 0.x (`spring-boot-starter-actor`)? See the [migration guide](https:/
 ## Learn more
 
 - [Documentation](https://seonwkim.github.io/actor-spring-boot-starter/): guides for every feature and a configuration reference
-- [Examples](example): simple, cluster, chat, AI agents, persistence, Kubernetes, Kotlin and more
+- [Examples](example): simple, cluster, chat, sharded chat, AI agents, persistence, Kubernetes, Kotlin and more
 - [`llms.txt`](https://seonwkim.github.io/actor-spring-boot-starter/llms.txt) for AI assistants
 
 ## Community

@@ -1,0 +1,7 @@
+# The start and stop scripts (the root .gitignore ignores bin/ folders).
+!bin/
+
+# web/: its dependencies, and the bundle it writes into Spring's static folder.
+web/node_modules/
+control/src/main/resources/static/*
+!control/src/main/resources/static/.gitkeep
