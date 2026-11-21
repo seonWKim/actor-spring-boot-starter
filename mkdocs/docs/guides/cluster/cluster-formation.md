@@ -216,6 +216,7 @@ you set rather than comparing the whole set.
 | `spring.actor.cluster.discovery.method` | none | `jdbc`, `redis`, `custom`, `kubernetes-api`, `dns` or `config` |
 | `spring.actor.cluster.discovery.heartbeat-interval` | `5s` | How often a node renews its entry |
 | `spring.actor.cluster.discovery.ttl` | `30s` | Entries older than this are ignored |
+| `spring.actor.cluster.discovery.service-name` | `spring.actor.name`, or `<name>-<color>` (see below) | The name entries are stored and looked up under |
 | `spring.actor.cluster.join-self` | `false` | Form a one-node cluster without seed nodes, for local runs and tests |
 | `spring.actor.cluster.roles` | none | Roles of this node, for [sharded actors](sharded-actors.md#run-entities-on-some-nodes-only) and [singletons](singletons.md#limit-it-to-some-nodes) |
 | `spring.actor.jdbc.initialize-schema` | `embedded` | When to create `actor_peer` and `actor_lease`: `embedded`, `always`, `never` |
@@ -229,7 +230,10 @@ you set rather than comparing the whole set.
 - **Remoting port** (`spring.actor.remote.port`, default `25520`) between all nodes.
 - **The store** (database or Redis) from every node.
 - The nodes of one cluster use the same `spring.actor.name`: it is the service name their entries are stored
-  under.
+  under. With `spring.actor.generation.color` set, `jdbc`, `redis` and `custom` store them under
+  `<name>-<color>` (`orders-blue`, `orders-green`), so the two colors of a
+  [blue-green deployment](../operations/deployments.md#blue-green) can share the store and still form
+  separate clusters. `spring.actor.cluster.discovery.service-name` sets the name yourself.
 
 The Kubernetes example has ready-made overlays for both stores, with the NetworkPolicies:
 see `example/kubernetes/overlays/discovery-jdbc` and `discovery-redis` and the "Without RBAC" section of

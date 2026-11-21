@@ -104,7 +104,7 @@ activates blue, and forwards the page to http://localhost:8090. Run it again to 
 | Piece | Local (`bin/start`) | Kubernetes (`k8s/`) |
 |---|---|---|
 | Chat nodes | JVMs the control app starts | a StatefulSet per color (`chat-blue`, `chat-green`); pod `chat-blue-<i>` is node i+1, `chat-green-<i>` node 51+i |
-| Forming a cluster | seed nodes on 127.0.0.1 | discovery: each pod writes its pod IP to the `actor_peer` table under its color's system name (`sharded-chat-blue`), and Cluster Bootstrap joins them |
+| Forming a cluster | seed nodes on 127.0.0.1 | discovery: each pod writes its pod IP to the `actor_peer` table under `sharded-chat-blue` (the starter adds the color), and Cluster Bootstrap joins them |
 | Generation store | H2 in the control app | PostgreSQL; its tables come from a one-off Job (`schema.yaml`), not from each pod |
 | Deploy, activate, retire | the page or `bin/blue-green` | `k8s/blue-green.sh` (kubectl; activation runs `curl` inside a pod, so the deployer password stays there) |
 | + node, stop node | the page | `kubectl scale`, `kubectl delete pod` (the StatefulSet starts it again) |

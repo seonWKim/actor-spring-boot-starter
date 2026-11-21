@@ -772,6 +772,22 @@ public class ActorProperties {
         /** How long an entry counts as alive after its last renewal (jdbc, redis, custom). */
         private Duration ttl = Duration.ofSeconds(30);
 
+        /**
+         * The name a node registers and looks up its peers under (Pekko's contact-point-discovery
+         * service-name). Default: the actor system name; with spring.actor.generation.color set and a
+         * jdbc, redis or custom registry, the system name and the color (orders-blue), so the two colors
+         * of a blue-green deployment that share the store form separate clusters.
+         */
+        @Nullable private String serviceName;
+
+        @Nullable public String getServiceName() {
+            return serviceName;
+        }
+
+        public void setServiceName(@Nullable String serviceName) {
+            this.serviceName = serviceName;
+        }
+
         @Nullable public Method getMethod() {
             return method;
         }
@@ -932,6 +948,13 @@ public class ActorProperties {
 
     /** Read by the cluster module, which joins the node to itself when it is true. */
     private static final String JOIN_SELF_KEY = "spring-actor.cluster.join-self";
+
+    /** Cluster Bootstrap's service name: what a node registers and looks up its peers under. */
+    private static final String SERVICE_NAME_PATH =
+            "pekko.management.cluster.bootstrap.contact-point-discovery.service-name";
+
+    /** The actor system's name when spring.actor.name is not set (DefaultSpringActorSystemBuilder). */
+    private static final String DEFAULT_SYSTEM_NAME = "system";
 
     /** The discovery method of actor-cluster's PeerRegistry adapter (PeerRegistryServiceDiscovery.METHOD). */
     private static final String PEER_REGISTRY_METHOD = "spring-actor-peer-registry";
@@ -1119,27 +1142,45 @@ public class ActorProperties {
                     + " org.apache.pekko:pekko-management-cluster-bootstrap_3 and pekko-management-cluster-http_3");
         }
         String key = "cluster.discovery.method";
-        return switch (discovery.method) {
-            case KUBERNETES_API -> List.of(new TypedKey(key, "pekko.discovery.method", "kubernetes-api"));
-            case DNS -> List.of(new TypedKey(key, "pekko.discovery.method", "pekko-dns"));
-            case CONFIG -> List.of(new TypedKey(key, "pekko.discovery.method", "config"));
-            case JDBC, REDIS, CUSTOM -> {
-                String adapter = "pekko.discovery." + PEER_REGISTRY_METHOD;
-                yield List.of(
-                        new TypedKey(key, "pekko.discovery.method", PEER_REGISTRY_METHOD),
-                        new TypedKey(
-                                "cluster.discovery.heartbeat-interval",
-                                adapter + ".heartbeat-interval",
-                                discovery.heartbeatInterval.toMillis() + "ms"),
-                        new TypedKey("cluster.discovery.ttl", adapter + ".ttl", discovery.ttl.toMillis() + "ms"),
-                        // The registry lists only management ports, so Bootstrap must not drop the
-                        // ones that differ from this node's own (several nodes on one host).
-                        new TypedKey(
-                                key,
-                                "pekko.management.cluster.bootstrap.contact-point.filter-on-fallback-port",
-                                false));
-            }
-        };
+        List<TypedKey> keys = new ArrayList<>();
+        if (discovery.serviceName != null) {
+            keys.add(new TypedKey("cluster.discovery.service-name", SERVICE_NAME_PATH, discovery.serviceName));
+        }
+        keys.addAll(
+                switch (discovery.method) {
+                    case KUBERNETES_API -> List.of(new TypedKey(key, "pekko.discovery.method", "kubernetes-api"));
+                    case DNS -> List.of(new TypedKey(key, "pekko.discovery.method", "pekko-dns"));
+                    case CONFIG -> List.of(new TypedKey(key, "pekko.discovery.method", "config"));
+                    case JDBC, REDIS, CUSTOM -> {
+                        String adapter = "pekko.discovery." + PEER_REGISTRY_METHOD;
+                        List<TypedKey> registry = new ArrayList<>();
+                        // The two colors share the store (it also holds their generation record): each color
+                        // registers under its own name, or green would be handed blue's nodes as contact points.
+                        // Not for kubernetes-api, dns or config, which find pods by the name (a label, a record).
+                        if (discovery.serviceName == null && generation.getColor() != null) {
+                            registry.add(new TypedKey(
+                                    "generation.color",
+                                    SERVICE_NAME_PATH,
+                                    (name != null ? name : DEFAULT_SYSTEM_NAME) + "-" + generation.getColor()));
+                        }
+                        registry.addAll(List.of(
+                                new TypedKey(key, "pekko.discovery.method", PEER_REGISTRY_METHOD),
+                                new TypedKey(
+                                        "cluster.discovery.heartbeat-interval",
+                                        adapter + ".heartbeat-interval",
+                                        discovery.heartbeatInterval.toMillis() + "ms"),
+                                new TypedKey(
+                                        "cluster.discovery.ttl", adapter + ".ttl", discovery.ttl.toMillis() + "ms"),
+                                // The registry lists only management ports, so Bootstrap must not drop the
+                                // ones that differ from this node's own (several nodes on one host).
+                                new TypedKey(
+                                        key,
+                                        "pekko.management.cluster.bootstrap.contact-point.filter-on-fallback-port",
+                                        false)));
+                        yield registry;
+                    }
+                });
+        return keys;
     }
 
     @Nullable private static Object lookup(Map<String, Object> root, String path) {

@@ -80,6 +80,17 @@ its Kubernetes API discovery at that label
 (`--spring.actor.pekko.discovery.kubernetes-api.pod-label-selector=app=spring-actor-green`). So green forms
 its own cluster and never exchanges messages with blue.
 
+With `jdbc` or `redis` discovery there is no label to select: each color registers in the shared store under
+`<spring.actor.name>-<color>` (`spring-actor-system-green`), so Bootstrap hands green only green's pods. The
+generation record keeps `spring.actor.name` (or `spring.actor.generation.name`), so both colors read the
+same one.
+
+**Upgrading a running color in place.** Versions before this name registered every color under
+`spring.actor.name`. A rolling update onto this version would leave the new pods looking under
+`<name>-<color>`, where none of the running pods are. Release the upgrade as blue-green (the new color
+forms its own cluster anyway), or set `spring.actor.cluster.discovery.service-name` to the old name
+(`spring.actor.name`) for the rolling update.
+
 Before green starts, `deploy` also copies each NetworkPolicy that selects `app=spring-actor` (for example
 `spring-actor-green` from `spring-actor`, and `spring-actor-green-store` from `spring-actor-store` in the
 discovery overlays), with every `app=spring-actor` selector changed to `app=spring-actor-green`. Green gets
