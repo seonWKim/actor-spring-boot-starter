@@ -159,22 +159,23 @@ public final class PekkoActorSpawnBuilder<A extends SpringActorWithContext<C, ?>
         return spawn(true);
     }
 
-    private CompletionStage<SpringActorHandle<C>> spawn(boolean returnExisting) {
-        if (actorContext == null) {
-            String id = requireId();
-            IllegalArgumentException mismatch = ActorSpawner.defaultContextMismatch(actorClass);
-            if (mismatch != null) {
-                return CompletableFuture.failedFuture(mismatch);
-            }
-            actorContext = new DefaultSpringActorContext(id);
-        }
+    @Override
+    public SpringActorHandle<C> singletonHandle() {
+        return actorSystem.singletonHandle(
+                actorClass, prepareContext(), mailboxConfig, dispatcherConfig, tagsConfig, supervisorStrategy);
+    }
 
-        // Apply MDC configuration to the context
-        actorContext.setMdcConfig(mdcConfig);
+    private CompletionStage<SpringActorHandle<C>> spawn(boolean returnExisting) {
+        SpringActorContext context;
+        try {
+            context = prepareContext();
+        } catch (IllegalArgumentException mismatch) {
+            return CompletableFuture.failedFuture(mismatch);
+        }
 
         return actorSystem.spawn(
                 actorClass,
-                actorContext,
+                context,
                 mailboxConfig,
                 dispatcherConfig,
                 tagsConfig,
@@ -182,6 +183,26 @@ public final class PekkoActorSpawnBuilder<A extends SpringActorWithContext<C, ?>
                 supervisorStrategy,
                 returnExisting,
                 timeout);
+    }
+
+    /**
+     * The actor's context with the MDC configuration applied: the one given, or one made from the id.
+     *
+     * @throws IllegalArgumentException when no context was given and the actor needs its own context type
+     */
+    private SpringActorContext prepareContext() {
+        SpringActorContext context = actorContext;
+        if (context == null) {
+            String id = requireId();
+            IllegalArgumentException mismatch = ActorSpawner.defaultContextMismatch(actorClass);
+            if (mismatch != null) {
+                throw mismatch;
+            }
+            context = new DefaultSpringActorContext(id);
+            actorContext = context;
+        }
+        context.setMdcConfig(mdcConfig);
+        return context;
     }
 
     private String requireId() {

@@ -1,6 +1,7 @@
 package io.github.seonwkim.actor;
 
 import io.github.seonwkim.actor.receptionist.ServiceName;
+import io.github.seonwkim.actor.shard.SpringShardedActorHandle;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -103,6 +104,51 @@ public interface SpringBehaviorContext<T> {
      * actor and must not touch its state.
      */
     <V> void pipeToSelf(CompletionStage<V> future, BiFunction<? super V, Throwable, ? extends T> toMessage);
+
+    /**
+     * Asks {@code target} and sends this actor the message {@code toMessage} builds from the reply or the
+     * failure: a shorthand for
+     * {@code pipeToSelf(target.ask(command).withTimeout(timeout).execute(), toMessage)}, with the same
+     * semantics. When no reply comes within {@code timeout}, the error is a {@link
+     * java.util.concurrent.TimeoutException}. Exactly one of the reply and the error is non-null.
+     *
+     * <pre>{@code
+     * ctx.askToSelf(inventory, new Reserve(item), Duration.ofSeconds(2),
+     *         (reserved, error) -> error == null ? new Reserved(reserved) : new ReserveFailed(error));
+     * }</pre>
+     *
+     * <p>{@code toMessage} runs when the ask completes, outside the actor: it must only build the message,
+     * not touch the actor's state.
+     *
+     * @since 1.2.0
+     */
+    default <R> void askToSelf(
+            SpringActorHandle<?> target,
+            AskCommand<R> command,
+            Duration timeout,
+            BiFunction<? super R, Throwable, ? extends T> toMessage) {
+        pipeToSelf(target.ask(command).withTimeout(timeout).execute(), toMessage);
+    }
+
+    /**
+     * {@link #askToSelf(SpringActorHandle, AskCommand, Duration, BiFunction)} for a sharded entity: asks it
+     * wherever it runs, and sends this actor the message {@code toMessage} builds from the reply or the
+     * failure.
+     *
+     * <pre>{@code
+     * ctx.askToSelf(actorSystem.sharded(RoomActor.class).withId(roomId).get(), new Post(text), Duration.ofSeconds(2),
+     *         (ok, error) -> new Posted(roomId, error == null && ok));
+     * }</pre>
+     *
+     * @since 1.2.0
+     */
+    default <R> void askToSelf(
+            SpringShardedActorHandle<?> target,
+            AskCommand<R> command,
+            Duration timeout,
+            BiFunction<? super R, Throwable, ? extends T> toMessage) {
+        pipeToSelf(target.ask(command).withTimeout(timeout).execute(), toMessage);
+    }
 
     /** Registers this actor with the receptionist under {@code key}. */
     void registerWithReceptionist(ServiceName<T> name);

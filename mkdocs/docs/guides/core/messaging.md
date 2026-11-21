@@ -319,6 +319,19 @@ this way (simplified):
     }
     ```
 
+For the common case, asking an actor and turning the reply or the timeout into a message, `ctx.askToSelf`
+does the same in one call, with the same timeout and error behavior as `ask(...).withTimeout(...)`:
+
+```java
+ctx.askToSelf(approvals, new ApprovalActor.RequestApproval(request), Duration.ofMinutes(5),
+        (decision, error) -> error != null
+                ? new ApprovalResolved(false, "no answer: " + error.getMessage())
+                : new ApprovalResolved(decision.approved(), "answered"));
+```
+
+When no reply comes in time, `error` is a `TimeoutException`. The target can also be a sharded entity's
+handle (`actorSystem.sharded(RoomActor.class).withId(roomId).get()`), wherever the entity runs.
+
 The function you pass to `pipeToSelf` gets the value (or `null`) and the error (or `null`). It runs when
 the stage completes, so it must not touch the actor's state; it only builds the message. The actor
 changes its state when it handles that message. The same pattern works for any `CompletionStage`: an

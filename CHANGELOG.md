@@ -4,6 +4,11 @@
 
 ### Features
 
+- **`askToSelf` and a ready singleton handle (#267).** `ctx.askToSelf(target, command, timeout, (reply, error) ->
+  message)` asks another actor or a sharded entity and delivers the reply or the failure to this actor as a message, like
+  `pipeToSelf(target.ask(command).withTimeout(timeout).execute(), ...)`. `singletonHandle()` on the spawn builder
+  starts a cluster singleton and returns its handle at once; messages sent before the singleton runs wait in the
+  proxy. `asClusterSingleton().spawn()` is unchanged.
 - **A `DeploymentGeneration` without blue-green, and a handler that drops stale messages (#264).** Without
   `spring.actor.generation.color`, the starter registers `DeploymentGeneration.none()`: always active,
   `stamp()` returns 0 and `check()` never throws, so applications inject `DeploymentGeneration` directly

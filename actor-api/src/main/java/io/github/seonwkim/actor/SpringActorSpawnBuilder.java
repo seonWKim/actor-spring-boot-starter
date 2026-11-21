@@ -203,6 +203,35 @@ public interface SpringActorSpawnBuilder<A extends SpringActorWithContext<C, ?>,
     CompletionStage<SpringActorHandle<C>> getOrSpawn();
 
     /**
+     * Starts the actor as a cluster singleton and returns its handle at once, without waiting. The
+     * handle is this node's proxy to the singleton: messages sent before the singleton runs (this node
+     * has not joined yet, or the singleton is still starting or moving) wait in the proxy and are
+     * delivered once it runs. Pekko's proxy keeps up to 1000 of them
+     * ({@code spring.actor.pekko.cluster.singleton-proxy.buffer-size}) and drops the rest.
+     *
+     * <p>Use it where a handle is needed right away, such as a bean field set in the constructor, instead
+     * of holding the {@code CompletionStage} of {@code asClusterSingleton().spawn()}. Calling it again,
+     * on this node or another, gives a handle to the same singleton. You don't need to call {@link
+     * #asClusterSingleton()} first.
+     *
+     * <pre>{@code
+     * SpringActorHandle<Command> aggregator = actorSystem
+     *     .actor(MetricsAggregator.class)
+     *     .withId("aggregator")
+     *     .singletonHandle();
+     * aggregator.tell(new Record(...)); // delivered once the singleton runs
+     * }</pre>
+     *
+     * @return A handle to the singleton, usable at once
+     * @throws IllegalStateException If the actor system is not in cluster mode, or neither actorId nor
+     *     actorContext is set
+     * @since 1.2.0
+     */
+    default SpringActorHandle<C> singletonHandle() {
+        throw new UnsupportedOperationException(getClass().getName() + " does not implement singletonHandle()");
+    }
+
+    /**
      * Spawns the actor synchronously and returns the actor reference. This method blocks until the
      * actor is spawned.
      *

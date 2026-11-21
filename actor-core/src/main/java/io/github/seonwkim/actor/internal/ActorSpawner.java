@@ -9,6 +9,7 @@ import io.github.seonwkim.actor.SupervisionStrategy;
 import io.github.seonwkim.actor.TagsConfig;
 import javax.annotation.Nullable;
 import org.apache.pekko.actor.typed.ActorRef;
+import org.apache.pekko.actor.typed.ActorSystem;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.javadsl.ActorContext;
 import org.apache.pekko.actor.typed.javadsl.Behaviors;
@@ -134,27 +135,11 @@ public final class ActorSpawner {
             TagsConfig tagsConfig,
             boolean isClusterSingleton) {
 
-        // The behavior comes from this actor system's registry (its Spring context's actor beans)
-        SpringActorBehavior<?> defined = ActorTypeRegistry.of(ctx.getSystem()).createBehavior(actorClass, actorContext);
-        Behavior<?> behavior = PekkoBehaviors.forNewActor(defined, actorClass, ctx.getSystem());
-        if (defined.kind() != SpringActorBehavior.Kind.ROUTER) {
-            // A router passes traced messages on to its workers, which receive them.
-            behavior = MessageTracingSetup.receiving(ctx.getSystem(), behavior);
-        }
-
-        if (supervisorStrategy != null) {
-            behavior = Behaviors.supervise(behavior).onFailure(PekkoProps.supervisor(supervisorStrategy));
-        }
-
+        Behavior<?> behavior = behavior(ctx.getSystem(), actorClass, actorContext, supervisorStrategy);
         ActorRef<?> ref;
 
         if (isClusterSingleton) {
-            ref = ClusterSupport.require()
-                    .spawnSingleton(
-                            ctx.getSystem(),
-                            behavior,
-                            actorName,
-                            PekkoProps.of(dispatcherConfig, mailboxConfig, tagsConfig));
+            ref = startSingleton(ctx.getSystem(), behavior, actorName, mailboxConfig, dispatcherConfig, tagsConfig);
         } else {
             ref = ctx.spawn(behavior, actorName, PekkoProps.of(dispatcherConfig, mailboxConfig, tagsConfig));
         }
@@ -162,5 +147,56 @@ public final class ActorSpawner {
         @SuppressWarnings("unchecked")
         ActorRef<T> typedRef = (ActorRef<T>) ref;
         return typedRef;
+    }
+
+    /**
+     * Starts the actor as a cluster singleton of {@code system} and returns this node's proxy to it. It
+     * needs no actor context, so it may run on any thread; starting the same name again returns the same
+     * proxy.
+     */
+    public static <T> ActorRef<T> spawnSingleton(
+            ActorSystem<?> system,
+            Class<?> actorClass,
+            SpringActorContext actorContext,
+            String actorName,
+            @Nullable SupervisionStrategy supervisorStrategy,
+            MailboxConfig mailboxConfig,
+            DispatcherConfig dispatcherConfig,
+            TagsConfig tagsConfig) {
+        Behavior<?> behavior = behavior(system, actorClass, actorContext, supervisorStrategy);
+        @SuppressWarnings("unchecked")
+        ActorRef<T> ref =
+                (ActorRef<T>) startSingleton(system, behavior, actorName, mailboxConfig, dispatcherConfig, tagsConfig);
+        return ref;
+    }
+
+    /** The actor's behavior from this actor system's registry (its Spring context's actor beans). */
+    private static Behavior<?> behavior(
+            ActorSystem<?> system,
+            Class<?> actorClass,
+            SpringActorContext actorContext,
+            @Nullable SupervisionStrategy supervisorStrategy) {
+        SpringActorBehavior<?> defined = ActorTypeRegistry.of(system).createBehavior(actorClass, actorContext);
+        Behavior<?> behavior = PekkoBehaviors.forNewActor(defined, actorClass, system);
+        if (defined.kind() != SpringActorBehavior.Kind.ROUTER) {
+            // A router passes traced messages on to its workers, which receive them.
+            behavior = MessageTracingSetup.receiving(system, behavior);
+        }
+        if (supervisorStrategy != null) {
+            behavior = Behaviors.supervise(behavior).onFailure(PekkoProps.supervisor(supervisorStrategy));
+        }
+        return behavior;
+    }
+
+    private static ActorRef<?> startSingleton(
+            ActorSystem<?> system,
+            Behavior<?> behavior,
+            String actorName,
+            MailboxConfig mailboxConfig,
+            DispatcherConfig dispatcherConfig,
+            TagsConfig tagsConfig) {
+        return ClusterSupport.require()
+                .spawnSingleton(
+                        system, behavior, actorName, PekkoProps.of(dispatcherConfig, mailboxConfig, tagsConfig));
     }
 }
