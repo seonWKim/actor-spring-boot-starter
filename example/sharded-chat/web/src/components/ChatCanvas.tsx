@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { avatarOf } from '../lib/avatars.ts';
 import { layoutChat, memberships, type ChatRoomInfo, type ChatUserInfo, type Placed, type Point } from '../lib/chatGraph.ts';
 import { progress, pruneDots, type FlowDot, type FlowState } from '../lib/chatFlow.ts';
+import { done, plan, positionAt, type Motion, type Spot } from '../lib/motion.ts';
 import { nodeColour, type ClusterNode } from '../lib/nodes.ts';
 import { bareId, colorOfId } from '../lib/ids.ts';
 import type { ColorState, DeployState } from '../lib/api.ts';
@@ -93,13 +94,49 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
     for (const p of [...layout.rooms, ...layout.users]) map.set(p.id, p);
     return map;
   }, [layout]);
+  // Where each actor is drawn: gliding to its place in the layout (motion.ts), so a resharded room or
+  // user travels to its new node instead of vanishing there and appearing here.
+  const shownRef = useRef(new Map<string, Spot>());
+  const motionsRef = useRef(new Map<string, Motion>());
+  const plannedFor = useRef<Map<string, Placed> | null>(null);
+  if (plannedFor.current !== where) {
+    const now = performance.now();
+    const next = plan(shownRef.current, where, now);
+    // A move already on its way to the same place carries on (it keeps its pace and its trail).
+    for (const [id, m] of motionsRef.current) {
+      const to = where.get(id);
+      if (to && !done(m, now) && Math.abs(m.to.x - to.x) < 0.5 && Math.abs(m.to.y - to.y) < 0.5) next.set(id, m);
+    }
+    motionsRef.current = next;
+    plannedFor.current = where;
+  }
+  const renderedAt = performance.now();
+  const display = new Map<string, Placed>();
+  for (const [id, p] of where) {
+    const m = motionsRef.current.get(id);
+    display.set(id, m && !done(m, renderedAt) ? { ...p, ...positionAt(m, renderedAt) } : p);
+  }
+  shownRef.current = display;
+  const trails = [...motionsRef.current].filter(([, m]) => m.resharded && !done(m, renderedAt));
+  const [, setMotionFrame] = useState(0);
+  useEffect(() => {
+    let frame = 0;
+    const step = () => {
+      setMotionFrame((n) => n + 1);
+      const now = performance.now();
+      if ([...motionsRef.current.values()].some((m) => !done(m, now))) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [where]);
+  const at = (p: Placed) => display.get(p.id) ?? p;
   const links = useMemo(() => memberships(users), [users]);
   const focus = hovered ?? selectedId;
   const nodeInfo = useMemo(() => new Map(nodes.map((n) => [n.node, n])), [nodes]);
 
   // The dot layer: one canvas, drawn each frame while a dot is in flight.
-  const whereRef = useRef(where);
-  whereRef.current = where;
+  const whereRef = useRef<Map<string, Placed>>(display);
+  whereRef.current = display;
   const centreRef = useRef(layout.centre);
   centreRef.current = layout.centre;
   const flowsRef = useRef(flows);
@@ -141,6 +178,8 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
       const bubbles: { p: Point; text: string; alpha: number; colour: string }[] = [];
       const mine: { p: Point; text: string; alpha: number; colour: string }[] = [];
       for (const dot of flows.dots as FlowDot[]) {
+        // A room's send waits at the room until the message that caused it arrives.
+        if (now < dot.start) continue;
         const a = pos.get(dot.sender) ?? (dot.sender === 'page' ? top : null);
         const b = pos.get(dot.receiver) ?? (dot.receiver === 'page' ? top : null);
         if (!a || !b) continue;
@@ -240,7 +279,7 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
       {size.width > 0 && (
         <svg width={size.width} height={size.height} className="absolute inset-0 select-none" role="img" aria-label="Chat rooms and users by process">
           <defs>
-            {layout.users.map((u) => (
+            {layout.users.map(at).map((u) => (
               <clipPath key={u.id} id={clipId(u.id)}>
                 <circle cx={u.x} cy={u.y} r={layout.avatar} />
               </clipPath>
@@ -310,8 +349,8 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
           })}
           <g>
             {links.map(({ user, room }) => {
-              const a = where.get(user);
-              const b = where.get(room);
+              const a = display.get(user);
+              const b = display.get(room);
               if (!a || !b) return null;
               const on = linked(user, room);
               return (
@@ -328,7 +367,17 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
               );
             })}
           </g>
-          {layout.rooms.map((r) => {
+          {trails.map(([id, m]) => {
+            const p = display.get(id);
+            if (!p) return null;
+            return (
+              <g key={`trail-${id}`} pointerEvents="none" data-moving={id}>
+                <line x1={m.from.x} y1={m.from.y} x2={p.x} y2={p.y} stroke={nodeVar(p.node)} strokeWidth={2} strokeDasharray="4 4" strokeOpacity={0.7} />
+                <circle cx={m.from.x} cy={m.from.y} r={4} fill="none" stroke={nodeVar(p.node)} strokeOpacity={0.5} />
+              </g>
+            );
+          })}
+          {layout.rooms.map(at).map((r) => {
             const s = layout.room;
             const room = rooms.find((x) => x.id === r.id);
             return (
@@ -363,7 +412,7 @@ export function ChatCanvas({ rooms, users, nodes, deploy, flows, selectedId, onS
               </g>
             );
           })}
-          {layout.users.map((u) => {
+          {layout.users.map(at).map((u) => {
             const a = layout.avatar;
             return (
               <g
