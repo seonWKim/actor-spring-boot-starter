@@ -1,0 +1,43 @@
+# Who may talk to whom. Cluster traffic (remoting, and Cluster Bootstrap on 7626) stays inside one color; a node's HTTP API takes the
+# control app and the node's own color; the database takes the chat nodes only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: chat-blue
+spec:
+  podSelector:
+    matchLabels: { app: sharded-chat, color: blue }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [ { podSelector: { matchLabels: { app: sharded-chat, color: blue } } } ]
+      ports: [ { port: 25520 }, { port: 7626 }, { port: 8080 } ]
+    - from: [ { podSelector: { matchLabels: { app: control } } } ]
+      ports: [ { port: 8080 } ]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: chat-green
+spec:
+  podSelector:
+    matchLabels: { app: sharded-chat, color: green }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [ { podSelector: { matchLabels: { app: sharded-chat, color: green } } } ]
+      ports: [ { port: 25520 }, { port: 7626 }, { port: 8080 } ]
+    - from: [ { podSelector: { matchLabels: { app: control } } } ]
+      ports: [ { port: 8080 } ]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres
+spec:
+  podSelector:
+    matchLabels: { app: postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: sharded-chat } }
+        - podSelector: { matchLabels: { app: chat-schema } }
+      ports: [ { port: 5432 } ]

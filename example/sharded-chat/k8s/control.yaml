@@ -1,0 +1,87 @@
+# The page and the event relay. It only watches: it finds the nodes through each color's chat Service
+# (GET /api/cluster/nodes) and reaches each pod by its DNS name. It has no access to the Kubernetes API;
+# deploy, activate, retire and scaling are blue-green.sh and kubectl, and the page shows those commands.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: control
+data:
+  application.yml: |
+    control:
+      platform: external
+      nodes-per-color: 3
+      external:
+        color-url: http://chat-{color}:8080
+        node-http-port: 8080
+        # Pod chat-<color>-<index> is node first-node + index (the rule in chat-<color>.yaml).
+        instance-name: chat-{color}-{index}
+        first-node: { blue: 1, green: 51 }
+        commands:
+          deploy: k8s/blue-green.sh deploy {color}
+          activate: k8s/blue-green.sh activate {color}
+          retire: k8s/blue-green.sh retire {color}
+          addNode: kubectl -n sharded-chat scale statefulset/chat-{color} --replicas={replicas}
+          # The StatefulSet starts the pod again: on Kubernetes a stopped node comes back by itself.
+          stopNode: kubectl -n sharded-chat delete pod {pod}
+          startNode: kubectl -n sharded-chat get pod {pod}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control
+  labels: { app: control }
+spec:
+  selector: { app: control }
+  ports:
+    - { name: http, port: 8080 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control
+  labels: { app: control }
+spec:
+  # One: it keeps the page's event history in memory.
+  replicas: 1
+  selector:
+    matchLabels: { app: control }
+  template:
+    metadata:
+      labels: { app: control }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: control
+          image: sharded-chat-control:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: SPRING_CONFIG_ADDITIONAL_LOCATION, value: "file:/config/" }
+            - { name: JAVA_TOOL_OPTIONS, value: "-Djava.io.tmpdir=/tmp" }
+          ports:
+            - { name: http, containerPort: 8080 }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 384Mi }
+          readinessProbe:
+            httpGet: { path: /api/deploy, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: config, mountPath: /config, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: config
+          configMap: { name: control }
+        - name: tmp
+          emptyDir: {}

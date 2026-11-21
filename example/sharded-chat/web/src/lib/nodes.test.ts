@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseEvent } from './events.ts';
-import { NODE_COLOURS, applyMember, hubLabel, nodeColour, nodeFacts, toClusterNode, type ClusterNode } from './nodes.ts';
+import { NODE_COLOURS, applyMember, assignColours, hubLabel, nodeColour, nodeFacts, toClusterNode, type ClusterNode } from './nodes.ts';
 
 const node5: ClusterNode = { node: 5, port: 2555, status: 'up', actors: 3, color: 'green', version: 'v2' };
 const member = (data: Record<string, unknown>) => parseEvent('member', JSON.stringify(data))!;
@@ -24,4 +24,14 @@ test('a member event changes the node status and adds a node it does not know', 
   assert.equal(down[0].status, 'stopping');
   const joined = applyMember([node5], member({ actorId: 'node-6', message: 'starting' }));
   assert.deepEqual(joined.map((n) => [n.node, n.status]), [[5, 'up'], [6, 'starting']]);
+});
+
+test("a node's colour follows its deployment color, not its number", () => {
+  assignColours([
+    { node: 4, color: 'blue' },
+    { node: 1, color: 'blue' },
+    { node: 51, color: 'green' },
+  ]);
+  assert.deepEqual([1, 4, 51].map(nodeColour), ['node-1', 'node-2', 'node-4']);
+  assignColours([]);
 });

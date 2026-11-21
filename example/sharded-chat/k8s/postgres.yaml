@@ -1,0 +1,42 @@
+# The generation store both colors share: one record says which color is active (actor_generation).
+# A demo database: its data lives as long as the pod.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector: { app: postgres }
+  ports:
+    - { name: postgres, port: 5432 }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - { name: POSTGRES_DB, value: chat }
+            - { name: POSTGRES_USER, value: chat }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: chat-secrets, key: db-password } }
+          ports:
+            - { name: postgres, containerPort: 5432 }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "chat", "-d", "chat"] }
+            periodSeconds: 3
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+      volumes:
+        - name: data
+          emptyDir: {}

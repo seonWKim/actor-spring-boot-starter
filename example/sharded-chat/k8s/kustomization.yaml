@@ -1,0 +1,12 @@
+# The sharded chat on Kubernetes: bin/k8s-up applies this (kubectl apply -k k8s). README.md, "On Kubernetes".
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sharded-chat
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - schema.yaml
+  - chat-blue.yaml
+  - chat-green.yaml
+  - control.yaml
+  - networkpolicy.yaml

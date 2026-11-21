@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Api, DeployState } from '../lib/api.ts';
+import { ErrorOrCommand } from './ErrorOrCommand.tsx';
 import { BUTTON, PRIMARY, SMALL_BUTTON } from './ui.ts';
 
 type Step = 'deploy' | 'activate' | 'retire';
@@ -120,12 +121,13 @@ export function BlueGreenPanel({ api, deploy, onChanged }: { api: Api; deploy: D
           </button>
         ))}
       </div>
-      {result && <p className="text-[12px] text-log-muted">{result}</p>}
-      {error && (
-        <p role="alert" className="text-[12px] text-log-error">
-          {error}
+      {!deploy.runsNodes && (
+        <p className="text-[12px] text-log-muted" data-platform-runs>
+          The platform runs the nodes: each button shows the command that does it there.
         </p>
       )}
+      {result && <p className="text-[12px] text-log-muted">{result}</p>}
+        {error && <ErrorOrCommand error={error} />}
       <details className="text-[12px] leading-5 text-log-muted">
         <summary className="cursor-pointer select-none text-log-ink">How it works</summary>
         <ol className="mt-1 list-decimal space-y-1 pl-4">

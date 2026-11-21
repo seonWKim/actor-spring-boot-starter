@@ -23,8 +23,9 @@ public class LogController {
         if ("control".equals(source)) {
             return text(control.buffer());
         }
-        return nodes.get(Integer.parseInt(source.substring("node-".length())))
-                .map(n -> text(n.log))
+        int node = Integer.parseInt(source.substring("node-".length()));
+        return nodes.get(node)
+                .map(n -> ResponseEntity.ok(String.join("\n", nodes.platform().log(node)) + "\n"))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 

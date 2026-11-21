@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.sql.SQLException;
 import org.h2.tools.Server;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
  * In production this is the database (or Redis) both deployments already share.
  */
 @Component
+@ConditionalOnProperty(name = "control.platform", havingValue = "local", matchIfMissing = true)
 public class GenerationStoreServer {
 
     private final Server server;

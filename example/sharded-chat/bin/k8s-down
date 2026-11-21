@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Stops the port-forward and deletes the chat's namespace; with --cluster also the kind cluster
+# bin/k8s-up made (not Docker Desktop's Kubernetes).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+CLUSTER=${CLUSTER:-sharded-chat}
+CONTEXT=${CONTEXT:-$(kubectl --context docker-desktop get nodes > /dev/null 2>&1 && echo docker-desktop || echo "kind-$CLUSTER")}
+if [ -f build/k8s-port-forward.pid ]; then
+    loop="$(cat build/k8s-port-forward.pid)"
+    pkill -P "$loop" 2>/dev/null || true
+    kill "$loop" 2>/dev/null || true
+fi
+rm -f build/k8s-port-forward.pid
+kubectl --context "$CONTEXT" delete namespace sharded-chat --ignore-not-found
+if [ "${1:-}" = "--cluster" ] && [ "$CONTEXT" = "kind-$CLUSTER" ]; then
+    kind delete cluster --name "$CLUSTER"
+fi

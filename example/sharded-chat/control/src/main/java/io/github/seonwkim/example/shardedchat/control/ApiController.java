@@ -145,8 +145,7 @@ public class ApiController {
         for (NodeProcess n : nodes.all()) {
             list.addObject()
                     .put("node", n.node)
-                    .put("port", ControlProperties.remotePort(n.node))
-                    .put("http", ControlProperties.httpPort(n.node))
+                    .put("port", nodes.platform().remotePort(n.node))
                     .put("status", n.status.equals("stopped") ? "removed" : n.status)
                     .put("color", n.color)
                     .put("version", n.version)
@@ -163,6 +162,9 @@ public class ApiController {
         if (!ControlProperties.BLUE.equals(color) && !ControlProperties.GREEN.equals(color)) {
             return Mono.just(refuse("color must be blue or green"));
         }
+        if (!nodes.platform().runsNodes()) {
+            return Mono.just(platformRuns("addNode", color, null));
+        }
         return blocking(() -> deployer.addNode(color)
                 .map(node -> ok("adding node " + node + " to " + color))
                 .orElseGet(() -> refuse(
@@ -171,11 +173,17 @@ public class ApiController {
 
     @PostMapping("/api/cluster/nodes/{node}/stop")
     public ResponseEntity<JsonNode> stopNode(@PathVariable int node) {
+        if (!nodes.platform().runsNodes()) {
+            return platformRuns("stopNode", nodes.colorOf(node), node);
+        }
         return deployer.stop(node) ? ok("stopping node " + node) : refuse("node " + node + " is not running");
     }
 
     @PostMapping("/api/cluster/nodes/{node}/start")
     public Mono<ResponseEntity<JsonNode>> startNode(@PathVariable int node) {
+        if (!nodes.platform().runsNodes()) {
+            return Mono.just(platformRuns("startNode", nodes.colorOf(node), node));
+        }
         return blocking(() -> deployer.startNode(node)
                 ? ok("starting node " + node)
                 : refuse("node " + node + " is running, or its color is not deployed"));
@@ -206,6 +214,9 @@ public class ApiController {
                     live.isEmpty() ? "none" : active != null && active.color().equals(color) ? "active" : "standby");
         }
         out.put("busy", deployer.busy());
+        // Where the platform runs the nodes, the page shows these commands instead of acting.
+        out.put("runsNodes", nodes.platform().runsNodes());
+        out.set("commands", json.valueToTree(nodes.platform().commands()));
         ObjectNode actions = out.putObject("next");
         actions.put("deploy", next.deploy());
         actions.put("activate", next.activate());
@@ -220,6 +231,9 @@ public class ApiController {
             if (color == null) {
                 return refuse("nothing to deploy: both colors run, or none is active yet");
             }
+            if (!nodes.platform().runsNodes()) {
+                return platformRuns("deploy", color, null);
+            }
             deployer.deploy(color);
             return ok("deploying " + color);
         });
@@ -232,6 +246,9 @@ public class ApiController {
             if (color == null) {
                 return refuse("nothing to activate: the standby color is not warmed up");
             }
+            if (!nodes.platform().runsNodes()) {
+                return platformRuns("activate", color, null);
+            }
             return ok(deployer.activate(color));
         });
     }
@@ -242,6 +259,9 @@ public class ApiController {
             String color = deployer.pipeline().retire();
             if (color == null) {
                 return refuse("nothing to retire: only the active color runs");
+            }
+            if (!nodes.platform().runsNodes()) {
+                return platformRuns("retire", color, null);
             }
             deployer.retire(color);
             return ok("retiring " + color);
@@ -258,7 +278,7 @@ public class ApiController {
     private Mono<JsonNode> fetch(int node, String path) {
         return nodes.client()
                 .get()
-                .uri(Nodes.base(node) + path)
+                .uri(nodes.base(node) + path)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .timeout(Nodes.CALL_TIMEOUT.multipliedBy(2))
@@ -271,7 +291,7 @@ public class ApiController {
         if (node.isEmpty()) {
             return Mono.just(error(HttpStatus.SERVICE_UNAVAILABLE, "no " + color + " node is up"));
         }
-        var request = nodes.client().method(method).uri(Nodes.base(node.get().node) + path);
+        var request = nodes.client().method(method).uri(nodes.base(node.get().node) + path);
         var withBody = body == null
                 ? request
                 : request.contentType(MediaType.APPLICATION_JSON).bodyValue(body);
@@ -294,6 +314,22 @@ public class ApiController {
 
     private ResponseEntity<JsonNode> ok(String result) {
         return ResponseEntity.ok(json.createObjectNode().put("result", result));
+    }
+
+    // The platform runs the nodes: the answer names the command that does the action there.
+    private ResponseEntity<JsonNode> platformRuns(String action, String color, Integer node) {
+        int replicas = nodes.live(color).size() + ("addNode".equals(action) ? 1 : 0);
+        String command = nodes.platform()
+                .commands()
+                .getOrDefault(action, action)
+                .replace("{color}", color)
+                .replace("{node}", node == null ? "" : String.valueOf(node))
+                .replace("{pod}", node == null ? "" : nodes.platform().nameOf(node))
+                .replace("{replicas}", String.valueOf(replicas));
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(json.createObjectNode()
+                        .put("error", "the platform runs the nodes; run: " + command)
+                        .put("command", command));
     }
 
     private ResponseEntity<JsonNode> refuse(String reason) {

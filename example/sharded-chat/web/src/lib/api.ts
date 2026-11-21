@@ -27,12 +27,17 @@ export interface ColorState {
   role: 'active' | 'standby' | 'none';
 }
 
+/** The command in the control app's answer when the platform runs the nodes; null for a real error. */
+export const platformCommand = (error: string): string | null => /^the platform runs the nodes; run: (.+)$/s.exec(error)?.[1] ?? null;
+
 /** GET /api/deploy: the active generation, both colors, and what the pipeline can do next. */
 export interface DeployState {
   active: Generation | null;
   colors: { blue: ColorState; green: ColorState };
   busy: boolean;
   next: { deploy: string | null; activate: string | null; retire: string | null };
+  /** False when a platform (Kubernetes) runs the nodes: an action then answers with the command to run. */
+  runsNodes: boolean;
 }
 
 export const NO_DEPLOY: DeployState = {
@@ -40,6 +45,7 @@ export const NO_DEPLOY: DeployState = {
   colors: { blue: { version: null, nodes: 0, up: 0, role: 'none' }, green: { version: null, nodes: 0, up: 0, role: 'none' } },
   busy: false,
   next: { deploy: null, activate: null, retire: null },
+  runsNodes: true,
 };
 
 /** The settings of the simulation the menu changes. */
@@ -121,6 +127,7 @@ export function toDeployState(body: unknown): DeployState {
     colors: { blue: toColorState(colors.blue), green: toColorState(colors.green) },
     busy: raw.busy === true,
     next: { deploy: textOrNull(next.deploy), activate: textOrNull(next.activate), retire: textOrNull(next.retire) },
+    runsNodes: raw.runsNodes !== false,
   };
 }
 

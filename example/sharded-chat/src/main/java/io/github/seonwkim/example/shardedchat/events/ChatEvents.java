@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -100,6 +101,18 @@ public class ChatEvents {
     /** Every event from now on, as this node sees it. */
     public Flux<ChatEvent> stream() {
         return sink.asFlux();
+    }
+
+    /**
+     * Ends every stream when the application starts shutting down. A stream never ends on its own, so the
+     * web server's graceful shutdown would wait its whole timeout for it (30s) before the pod could go; the
+     * subscriber (the control app) reconnects to another node instead.
+     */
+    @EventListener(ContextClosedEvent.class)
+    public void closeStreams() {
+        synchronized (sink) {
+            sink.tryEmitComplete();
+        }
     }
 
     /** The log lines this node holds, oldest first. */

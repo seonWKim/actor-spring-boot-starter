@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Api } from '../lib/api.ts';
 import { hubLabel, nodeFacts, type ClusterNode } from '../lib/nodes.ts';
+import { ErrorOrCommand } from './ErrorOrCommand.tsx';
 import { BUTTON } from './ui.ts';
 
 const closeButton = 'h-8 w-8 cursor-pointer rounded text-log-muted hover:bg-log-hover hover:text-log-ink';
@@ -72,11 +73,7 @@ export function NodeModal({ api, node, onChanged, onClose }: Props) {
             : 'It starts again with its color\'s version and joins its color\'s cluster.'}
         </p>
         {result && <p className="mt-1 text-[12px] text-log-muted">{result}</p>}
-        {error && (
-          <p role="alert" className="mt-1 text-[12px] text-log-error">
-            {error}
-          </p>
-        )}
+        {error && <ErrorOrCommand error={error} />}
       </div>
     </aside>
   );

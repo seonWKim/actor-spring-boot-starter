@@ -12,16 +12,19 @@ import org.springframework.stereotype.Component;
 /**
  * This node's view of the cluster's members, from the starter's {@link ClusterEvent}s (Spring
  * application events; the first ones replay the current state), so the page hears of each change at once.
- * A member's node number is its role {@code node-<n>} ({@code spring.actor.cluster.roles}, set from
- * {@code sharded-chat.node}). Each change also goes to this node's page as a {@code member} event.
+ * A member's node number is its role {@code node-<n>} and its release its role {@code version-<v>}
+ * ({@code spring.actor.cluster.roles}, set from {@code sharded-chat.node} and {@code sharded-chat.version}). Each change also goes to this node's page as a {@code member} event.
  */
 @Component
 public class ClusterMembers {
-    /** One node: its number, remote port and membership status. */
-    public record Member(int node, int port, String status) {}
+    /** One node: its number, host and remote port, release, and membership status. */
+    public record Member(int node, String host, int port, String version, String status) {}
 
     /** The role that numbers a node: {@code node-1}, {@code node-2}, ... */
     public static final String NODE_ROLE = "node-";
+
+    /** The role that names a node's release: {@code version-v2}. */
+    public static final String VERSION_ROLE = "version-";
 
     private final ChatEvents events;
     private final Map<Integer, Member> members = new TreeMap<>();
@@ -61,9 +64,18 @@ public class ClusterMembers {
             if (before != null && before.status().equals(status)) {
                 return;
             }
-            members.put(n, new Member(n, member.port().orElse(0), status));
+            members.put(n, new Member(n, member.host().orElse(""), member.port().orElse(0), versionOf(member), status));
         }
         events.emit(ChatEvent.member(n, status));
+    }
+
+    /** The release in a member's {@code version-<v>} role; empty for a member without one. */
+    public static String versionOf(ClusterMember member) {
+        return member.roles().stream()
+                .filter(role -> role.startsWith(VERSION_ROLE))
+                .map(role -> role.substring(VERSION_ROLE.length()))
+                .findFirst()
+                .orElse("");
     }
 
     /** The node number in a member's {@code node-<n>} role; empty for a member without one. */

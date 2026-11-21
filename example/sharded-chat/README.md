@@ -86,6 +86,59 @@ npm test        # the page's unit tests
 `./gradlew :example:sharded-chat:control:build` builds the page into `control/src/main/resources/static`
 when `web/node_modules` exists and `npm` is on the `PATH`; otherwise it skips it.
 
+## On Kubernetes
+
+The same apps run on Kubernetes from the manifests in `k8s/`. There, the platform runs the nodes and its
+tools change them: the apps never call the Kubernetes API, and need no RBAC.
+
+```bash
+cd example/sharded-chat
+(cd web && npm install)   # once
+bin/k8s-up                # Docker Desktop's Kubernetes if it runs, else a kind cluster
+bin/k8s-down              # deletes the namespace (--cluster also deletes the kind cluster)
+```
+
+`bin/k8s-up` builds both images, creates the secrets (never committed), applies `k8s/`, deploys and
+activates blue, and forwards the page to http://localhost:8090. Run it again to roll out a new build.
+
+| Piece | Local (`bin/start`) | Kubernetes (`k8s/`) |
+|---|---|---|
+| Chat nodes | JVMs the control app starts | a StatefulSet per color (`chat-blue`, `chat-green`); pod `chat-blue-<i>` is node i+1, `chat-green-<i>` node 51+i |
+| Forming a cluster | seed nodes on 127.0.0.1 | discovery: each pod writes its pod IP to the `actor_peer` table under its color's system name (`sharded-chat-blue`), and Cluster Bootstrap joins them |
+| Generation store | H2 in the control app | PostgreSQL; its tables come from a one-off Job (`schema.yaml`), not from each pod |
+| Deploy, activate, retire | the page or `bin/blue-green` | `k8s/blue-green.sh` (kubectl; activation runs `curl` inside a pod, so the deployer password stays there) |
+| + node, stop node | the page | `kubectl scale`, `kubectl delete pod` (the StatefulSet starts it again) |
+| The page | the control app runs the nodes | the control app only watches: it finds the nodes through each color's Service; each button shows the command to run |
+| Logs | `bin/logs` | `kubectl logs` |
+
+```bash
+export CONTEXT=docker-desktop
+k8s/blue-green.sh deploy green      # 3 green pods, version v2, waits until each is warmed up
+k8s/blue-green.sh activate green    # compare-and-set on the epoch
+k8s/blue-green.sh verify green      # every running pod reads green
+k8s/blue-green.sh activate blue     # roll back, while blue still runs
+k8s/blue-green.sh retire green      # scale green to 0
+k8s/blue-green.sh status
+```
+
+What the manifests do for operations:
+
+- **Replicas belong to the scripts.** The StatefulSets leave `replicas` out, so applying `k8s/` again
+  never undoes a `kubectl scale` or a deploy.
+- **Probes.** Readiness is `/actuator/health/warmup` (an Up member of a cluster with enough Up
+  members); liveness and startup use `/actuator/health/liveness`.
+- **Leaving on purpose.** `preStop` waits 5s, then the node leaves its cluster and its shards move;
+  the grace period is 45s. The node ends its event streams on shutdown, so the web server's graceful
+  shutdown does not wait for them.
+- **Memory.** Half of the 768Mi limit is heap; the rest is Pekko remoting's buffers, Netty and
+  metaspace. With 512Mi, pods taking over a lost node's shards were OOM-killed.
+- **Disruptions and placement.** A PodDisruptionBudget per color lets a drain take one pod at a time;
+  pods of a color prefer different hosts.
+- **Least privilege.** Non-root, read-only root filesystem, no capabilities, no service account token.
+  NetworkPolicies keep cluster traffic inside a color and the database open to the chat only.
+
+The PostgreSQL here keeps its data in the pod: use a managed or replicated database in production.
+
 ## How it works
 
 ```
@@ -170,8 +223,10 @@ src/main/java/io/github/seonwkim/example/shardedchat/     the node
            ChatCluster (how to reach them), ChatService (what the API calls), settings
   events/  ChatEvents (the topic), EventFeedActor, ClusterMembers, the event format
   web/     ChatController, ClusterController, SecurityConfiguration
-control/   the control app: Nodes (starts the JVMs), GenerationStoreServer, Deployer and Pipeline
-           (deploy, activate, retire), EventRelay, ApiController
+control/   the control app: Nodes, Platform (LocalPlatform starts the JVMs; ExternalPlatform watches
+           nodes a platform runs), GenerationStoreServer, Deployer and Pipeline (deploy, activate,
+           retire), EventRelay, ApiController
 web/       the page: Vite, React, TypeScript, Tailwind (see web/README.md)
-bin/       start, stop, start-node, add-node, blue-green
+bin/       start, stop, start-node, add-node, blue-green, logs; k8s-up, k8s-down
+k8s/       the manifests (kubectl apply -k), the Dockerfile and blue-green.sh
 ```

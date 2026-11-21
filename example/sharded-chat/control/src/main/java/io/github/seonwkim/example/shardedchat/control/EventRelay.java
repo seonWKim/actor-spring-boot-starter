@@ -50,7 +50,7 @@ public class EventRelay {
     private Disposable subscribe(String color, int node) {
         return nodes.client()
                 .get()
-                .uri(Nodes.base(node) + "/api/chat/events")
+                .uri(nodes.base(node) + "/api/chat/events")
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
                 .bodyToFlux(EVENT)

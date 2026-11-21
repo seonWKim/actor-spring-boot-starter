@@ -29,7 +29,6 @@ public class Deployer {
     static final int MIN_WARM = 2;
 
     private final Nodes nodes;
-    private final ControlProperties properties;
     private final ControlEvents events;
     private final EventRelay relay;
 
@@ -47,16 +46,42 @@ public class Deployer {
     /** The active generation: its color and epoch, and the operation that activated it. */
     public record Active(String color, long epoch, String operationId, String activatedAt) {}
 
-    public Deployer(Nodes nodes, ControlProperties properties, ControlEvents events, EventRelay relay) {
+    public Deployer(Nodes nodes, ControlEvents events, EventRelay relay) {
         this.nodes = nodes;
-        this.properties = properties;
         this.events = events;
         this.relay = relay;
     }
 
+    /**
+     * Deploys blue, unless nodes already run (this app restarted on a platform that keeps them) or the
+     * platform runs them itself: then it carries on with their colors and versions.
+     */
     @EventListener(ApplicationReadyEvent.class)
-    public void start() throws IOException {
-        deploy(ControlProperties.BLUE);
+    public synchronized void start() throws IOException {
+        nodes.discover();
+        if (nodes.all().isEmpty() && nodes.platform().runsNodes()) {
+            deploy(ControlProperties.BLUE);
+            return;
+        }
+        for (NodeProcess n : nodes.all()) {
+            versions.put(n.color, n.version);
+            warmReported.put(n.color, true);
+            releases = Math.max(releases, release(n.version));
+        }
+        events.deploy(
+                "info",
+                "found running nodes "
+                        + nodes.all().stream()
+                                .map(n -> n.node + " (" + n.color + " " + n.version + ")")
+                                .toList());
+    }
+
+    private static int release(String version) {
+        try {
+            return Integer.parseInt(version.replaceFirst("^v", ""));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     @Nullable public Active active() {
@@ -82,7 +107,7 @@ public class Deployer {
         versions.put(color, version);
         warmReported.put(color, false);
         events.deploy("info", "deploy " + color + " " + version + ": starting nodes " + slots(color));
-        for (int node : properties.slots(color)) {
+        for (int node : nodes.platform().slots(color)) {
             nodes.start(node, color, version);
             events.member(node, "starting");
         }
@@ -147,9 +172,7 @@ public class Deployer {
     /** Stage 4: stops the color's nodes. */
     public synchronized void retire(String color) {
         events.deploy("info", "retire " + color + " " + versions.get(color) + ": stopping nodes " + slots(color));
-        for (NodeProcess node : nodes.live(color)) {
-            nodes.stop(node.node);
-        }
+        nodes.retire(color);
     }
 
     public boolean stop(int node) {
@@ -163,7 +186,7 @@ public class Deployer {
     public synchronized boolean startNode(int node) throws IOException {
         String color = nodes.colorOf(node);
         String version = versions.get(color);
-        if (version == null || nodes.get(node).filter(n -> n.process.isAlive()).isPresent()) {
+        if (version == null || nodes.get(node).filter(nodes::alive).isPresent()) {
             return false;
         }
         nodes.start(node, color, version);
@@ -176,14 +199,20 @@ public class Deployer {
     @Scheduled(fixedDelay = 1000)
     public void check() {
         Active seen = null;
+        nodes.discover();
+        if (!nodes.platform().runsNodes()) {
+            // The platform deploys: each color's version is the one its nodes run.
+            nodes.all().stream().filter(NodeProcess::live).forEach(n -> versions.put(n.color, n.version));
+        }
         for (NodeProcess node : nodes.all()) {
             String before = node.status;
             // One read of the node's generation endpoint: the store's active generation, and this node's
             // view (what it reads now, and whether it is warmed up).
-            JsonNode generation = node.process.isAlive() && !"stopping".equals(node.status)
+            boolean alive = nodes.alive(node);
+            JsonNode generation = alive && !"stopping".equals(node.status)
                     ? nodes.generation(node.node).orElse(null)
                     : null;
-            if (!node.process.isAlive()) {
+            if (!alive) {
                 node.status = "stopped";
             } else if (!"stopping".equals(node.status)) {
                 node.status = generation == null
@@ -210,7 +239,7 @@ public class Deployer {
             relay.check(color);
             reportWarm(color);
         }
-        if (initial && active == null && warm(ControlProperties.BLUE)) {
+        if (initial && nodes.platform().runsNodes() && active == null && warm(ControlProperties.BLUE)) {
             initial = false;
             activate(ControlProperties.BLUE);
         }
@@ -264,7 +293,7 @@ public class Deployer {
     }
 
     private String slots(String color) {
-        int[] slots = properties.slots(color);
+        int[] slots = nodes.platform().slots(color);
         return slots[0] + " to " + slots[slots.length - 1];
     }
 
