@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Builds the example and starts the control app in the background (http://localhost:8080). The control
+# app starts the blue cluster (nodes 1 to 3, HTTP 8081 to 8083) and activates it; `bin/blue-green deploy`
+# or the page's menu then starts green (nodes 4 to 6) beside it. Logs stay in memory in the control app
+# (bin/logs [control|<n>]); no log file is written. Stop everything with bin/stop.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+root="$(cd ../.. && pwd)"
+
+"$root/gradlew" -p "$root" :example:sharded-chat:bootJar :example:sharded-chat:control:bootJar -q > /dev/null
+node_jar="$(ls "$PWD"/build/libs/sharded-chat-*.jar | grep -v plain | head -1)"
+control_jar="$(ls "$PWD"/control/build/libs/control-*.jar | grep -v plain | head -1)"
+
+mkdir -p build/nodes
+# Log files from older runs.
+rm -f build/control.log build/nodes/node-*.log
+java -jar "$control_jar" --control.node-jar="$node_jar" --control.node-dir="$PWD/build/nodes" > /dev/null 2>&1 &
+echo $! > build/control.pid
+echo "control: http://localhost:8080 (pid $!, logs: bin/logs [control|<n>])"
+echo "It starts blue (nodes 1 to 3) and activates it in about 15 seconds."

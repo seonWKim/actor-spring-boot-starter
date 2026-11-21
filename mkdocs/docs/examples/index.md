@@ -22,6 +22,7 @@ the repository root and stop them with `sh cluster-stop.sh`. Each page gives the
 | [Cluster](cluster.md) | Sharded actors and a cluster singleton on three nodes | Cluster (3 nodes) | `actor-spring-boot-starter-cluster` |
 | [Synchronization](synchronization.md) | A counter under load: DB lock vs Redis lock vs sharded actor | Cluster (3 nodes) + MySQL, Redis | `actor-spring-boot-starter-cluster` |
 | [Chat](chat.md) | WebSocket chat: actor per connection, sharded rooms, pub/sub topics | Cluster (3 nodes), Docker Compose | `actor-spring-boot-starter-cluster`, `actor-streams`, `actor-metrics` |
+| [Sharded chat](sharded-chat.md) | A live picture of a cluster: sharded rooms and users, a singleton, failover, blue-green | Cluster (2 × 3 nodes), browser | `actor-spring-boot-starter-cluster`, `actor-jdbc` |
 | [Metrics](metrics.md) | Actor meters in Prometheus through Actuator | Local | `actor-spring-boot-starter`, `actor-metrics` |
 | [Logging](logging.md) | Static and per-message MDC, tags, request ids, JSON logs | Local | `actor-spring-boot-starter` |
 | [Virtual threads](virtual-threads.md) | Dispatchers on Java 21 virtual threads | Local | `actor-spring-boot-starter` |

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# bin/add-node [blue|green]: starts one more node in a color (the active one by default), with that
+# color's version. It joins the color's cluster, up to 6 nodes a color; it takes the next free number
+# from 7 on (HTTP 8080 + n, cluster port 2550 + n).
+set -euo pipefail
+if [ $# -gt 0 ]; then body="{\"color\":\"$1\"}"; else body='{}'; fi
+curl -s -X POST -H 'Content-Type: application/json' -d "$body" http://localhost:8080/api/cluster/nodes; echo

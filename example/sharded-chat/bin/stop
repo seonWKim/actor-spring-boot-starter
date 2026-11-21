@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# bin/stop        stops the control app, which stops every node it started.
+# bin/stop <n>    stops node n alone (gracefully: it leaves its cluster and its shards move).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [ $# -gt 0 ]; then
+  curl -s -X POST "http://localhost:8080/api/cluster/nodes/$1/stop"; echo
+  exit 0
+fi
+
+if [ -f build/control.pid ] && kill -0 "$(cat build/control.pid)" 2>/dev/null; then
+  pid="$(cat build/control.pid)"
+  kill "$pid"
+  while kill -0 "$pid" 2>/dev/null; do sleep 0.5; done
+  echo "stopped control (pid $pid)"
+fi
+rm -f build/control.pid
+# Nodes left over if the control app died without stopping them.
+for f in build/nodes/node-*.pid; do
+  [ -e "$f" ] || continue
+  pid="$(cat "$f")"
+  if kill -0 "$pid" 2>/dev/null && ps -p "$pid" -o command= | grep -q sharded-chat; then
+    kill "$pid"; echo "stopped $(basename "$f" .pid) (pid $pid)"
+  fi
+  rm -f "$f"
+done

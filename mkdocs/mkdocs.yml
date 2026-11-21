@@ -83,6 +83,7 @@ nav:
     - Cluster: examples/cluster.md
     - Synchronization: examples/synchronization.md
     - Chat: examples/chat.md
+    - Sharded Chat: examples/sharded-chat.md
     - AI Agent: examples/agent.md
     - Persistence: examples/persistence.md
     - Metrics: examples/metrics.md

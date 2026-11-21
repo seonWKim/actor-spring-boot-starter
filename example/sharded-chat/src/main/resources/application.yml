@@ -1,0 +1,62 @@
+# One chat node. The control app (control/) starts them: the blue cluster is nodes 1 to 3, the green
+# cluster nodes 4 to 6. Node n listens on HTTP 8080+n and remote port 2550+n, and gets its color, its
+# cluster's seed nodes and the generation store on the command line (README.md).
+spring:
+  application:
+    name: sharded-chat
+  actor:
+    name: sharded-chat
+    provider: cluster
+    remote:
+      hostname: 127.0.0.1
+      port: 2551
+    cluster:
+      # The node's number as a role, so the others can tell it apart (ClusterMembers).
+      roles:
+        - node-${sharded-chat.node}
+      seed-nodes:
+        - pekko://sharded-chat@127.0.0.1:2551
+        - pekko://sharded-chat@127.0.0.1:2552
+        - pekko://sharded-chat@127.0.0.1:2553
+      # When a node dies, the side with most nodes downs it, and its shards and the singleton move.
+      downing:
+        strategy: keep-majority
+    pekko:
+      actor:
+        allow-java-serialization: off
+      cluster:
+        sharding:
+          # Rooms and users keep running while idle; their state lives in the actor.
+          passivation:
+            strategy: none
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # health/warmup: whether the node can be activated; generation: read or activate a color.
+        include: health,generation
+  endpoint:
+    health:
+      show-details: always
+    generation:
+      access: unrestricted   # activation is a write: it needs the deployer user (SecurityConfiguration)
+  health:
+    actor:
+      warmup:
+        # A color can be activated once each of its nodes sees at least 2 Up members.
+        min-members: 2
+
+sharded-chat:
+  # This node's number; it joins the cluster with the role node-<n>.
+  node: 1
+  # The release this node runs, shown on the page (the control app counts them up: v1, v2, ...).
+  version: v1
+  # The simulation the singleton starts with; the page changes rooms, users and rate live.
+  rooms: 4
+  users: 30
+  message-rate: 2
+  timeout-share: 0.1

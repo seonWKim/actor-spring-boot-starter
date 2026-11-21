@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# The blue-green pipeline, the same steps as the page's menu (README.md):
+#   bin/blue-green status     the active generation, each color's version and nodes, and what can be next
+#   bin/blue-green deploy     start the standby color with the next version; it warms up on its own
+#   bin/blue-green activate   activate the standby color (after a switch, this is the rollback)
+#   bin/blue-green retire     stop the color that is not active
+set -euo pipefail
+case "${1:-status}" in
+  status) curl -s http://localhost:8080/api/deploy ;;
+  deploy|activate|retire) curl -s -X POST "http://localhost:8080/api/deploy/$1" ;;
+  *) echo "usage: bin/blue-green [status|deploy|activate|retire]" >&2; exit 2 ;;
+esac
+echo

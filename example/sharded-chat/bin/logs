@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# bin/logs [control|<n>]: prints the last lines of the control app's log, or node n's output. Logs stay
+# in memory in the control app (the last 2000 lines each, oldest dropped); nothing is written to disk.
+set -euo pipefail
+source="${1:-control}"
+[[ "$source" =~ ^[0-9]+$ ]] && source="node-$source"
+curl -sf "http://localhost:8080/api/logs/$source" || echo "no log for $source (is the control app running?)" >&2

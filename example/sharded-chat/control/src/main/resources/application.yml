@@ -1,0 +1,15 @@
+# The control app: the page and the API on 8080; it starts the chat nodes on 8081 to 8086 (README.md).
+spring:
+  application:
+    name: sharded-chat-control
+server:
+  port: 8080
+
+control:
+  # The chat node's boot jar; bin/start passes it.
+  node-jar: ../build/libs/sharded-chat-1.1.0.jar
+  # Nodes per color: blue is nodes 1..n, green n+1..2n.
+  nodes-per-color: 3
+  java-options: -Xmx256m
+  # Where each node's pid file goes; its output stays in memory (GET /api/logs/node-<n>).
+  node-dir: build/nodes
