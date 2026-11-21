@@ -1,18 +1,21 @@
-<table>
-<tr>
-<td width="15%">
-  <img src="mkdocs/docs/logo.png" alt="Library Logo" />
-</td>
-<td>
-  <h2>Actor Spring Boot Starter</h2>
-  <p>The actor model for Spring Boot, on <a href="https://pekko.apache.org/">Apache Pekko</a> (the open-source fork of Akka).</p>
-</td>
-</tr>
-</table>
+<p align="center">
+  <a href="https://seonwkim.github.io/actor-spring-boot-starter/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="mkdocs/docs/assets/brand/lockup-dark.svg">
+      <img src="mkdocs/docs/assets/brand/lockup.svg" alt="actor-spring-boot-starter" height="56">
+    </picture>
+  </a>
+</p>
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.seonwkim/actor-spring-boot-starter)](https://central.sonatype.com/artifact/io.github.seonwkim/actor-spring-boot-starter)
-[![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://seonwkim.github.io/actor-spring-boot-starter/)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289DA?style=flat&logo=discord&logoColor=white)](https://discord.com/channels/1439734161614045205/1439734162100846655)
+<p align="center">
+  The actor model for Spring Boot, on <a href="https://pekko.apache.org/">Apache Pekko</a> (the open-source fork of Akka).
+</p>
+
+<p align="center">
+  <a href="https://central.sonatype.com/artifact/io.github.seonwkim/actor-spring-boot-starter"><img src="https://img.shields.io/maven-central/v/io.github.seonwkim/actor-spring-boot-starter" alt="Maven Central"></a>
+  <a href="https://seonwkim.github.io/actor-spring-boot-starter/"><img src="https://img.shields.io/badge/docs-latest-blue" alt="Documentation"></a>
+  <a href="https://discord.com/channels/1439734161614045205/1439734162100846655"><img src="https://img.shields.io/badge/Discord-Join%20Us-7289DA?style=flat&logo=discord&logoColor=white" alt="Discord"></a>
+</p>
 
 Actors are Spring beans. Spawn them, send them messages, and scale them across a cluster, without Pekko types in your code.
 Build stateful services like chat, sessions, workflows and long-running AI agents without extra middleware.
