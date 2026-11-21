@@ -11,6 +11,10 @@
 
 ### Features
 
+- **`@ActorDataSource`: a `DataSource` for the starter's tables (#282).** A `DataSource` bean marked
+  `@ActorDataSource` (declared with `@Bean(defaultCandidate = false)`) is used by the JDBC peer registry, lease
+  store and generation store, the event journal and snapshots, and their schema scripts, instead of the
+  application's. Projections stay on the application's `DataSource`. See the cluster formation guide.
 - **`askToSelf` and a ready singleton handle (#267).** `ctx.askToSelf(target, command, timeout, (reply, error) ->
   message)` asks another actor or a sharded entity and delivers the reply or the failure to this actor as a message, like
   `pipeToSelf(target.ask(command).withTimeout(timeout).execute(), ...)`. `singletonHandle()` on the spawn builder

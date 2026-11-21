@@ -51,7 +51,7 @@ Each needs `spring.actor.cluster.lease.store`:
 
 | `store` | Where leases live | Module |
 |---|---|---|
-| `jdbc` | The `actor_lease` table on the application's `DataSource` | `actor-jdbc` |
+| `jdbc` | The `actor_lease` table on the application's `DataSource`, or on [its own](cluster-formation.md#a-separate-datasource) | `actor-jdbc` |
 | `redis` | Keys with a TTL on the application's `RedisConnectionFactory` | `actor-redis` |
 | `custom` | Your `LeaseStore` bean | none |
 

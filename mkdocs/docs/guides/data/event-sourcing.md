@@ -194,7 +194,9 @@ The actor system starts after the database is initialized (the starter's scripts
 Liquibase), so an actor can recover as soon as it is spawned.
 
 The JDBC calls run on their own threads, as many as your Hikari pool has connections (10 otherwise).
-The starter never closes your `DataSource`.
+The starter never closes your `DataSource`. To keep the journal off the application's pool, give it a
+`DataSource` of its own with `@ActorDataSource`, as described in
+[A separate DataSource](../cluster/cluster-formation.md#a-separate-datasource); the tables are then created there.
 
 ## Tags for projections
 
