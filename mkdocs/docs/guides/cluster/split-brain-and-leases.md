@@ -92,6 +92,32 @@ Lease names: `<name>-pekko-sbr` for the downing lease, `<name>-singleton-<path>`
 `<name>-shard-<type>-<shard id>` for a shard, where `<name>` is `spring.actor.name`. The owner is
 `<name>@<host>:<port>` of the holding node.
 
+### When the lease store is down
+
+With leases, the store is needed while the cluster runs, not only when it forms. What a store outage does
+depends on what uses the lease:
+
+| Uses | Outage shorter than `ttl` minus `expiry-margin` (110 s by default) | Longer outage |
+|---|---|---|
+| `singleton.use-lease` | Nothing: renewals fail, and the holder keeps its lease and its singleton. | Each singleton stops on every node. Pekko retries the lease every 5 s, and the singleton starts again once the store answers. |
+| `sharding.use-lease` | Nothing, as for singletons. | Every shard stops with its entities, on every node. Each retries its lease every 5 s and starts again once the store answers. |
+
+`downing.strategy: lease-majority` takes its lease only when a node becomes unreachable and the downing
+strategy has to decide. If that happens while the store is down, no side can take the lease and every side
+downs itself: the whole cluster stops, however short the outage.
+
+So with `singleton.use-lease` and `sharding.use-lease`, the cluster's uptime is at most the store's. A
+singleton or entity that stops loses its in-memory state; keep what must survive in a database or an event
+journal ([State in a Database](../data/state-in-a-database.md)).
+
+To limit the effect:
+
+- Use a lease only where running twice is worse than not running. Without one, a singleton or shard keeps
+  running through a store outage. `keep-majority` needs no store.
+- Raise `lease.ttl` to ride out longer outages. The cost: when a holder crashes, another node waits up to the
+  ttl to take its lease, so its singletons and shards are down that long.
+- Run the store with failover that completes within the ttl minus the margin.
+
 ### JDBC
 
 `actor_lease` is created together with `actor_peer` when `spring.actor.jdbc.initialize-schema` is `always`
