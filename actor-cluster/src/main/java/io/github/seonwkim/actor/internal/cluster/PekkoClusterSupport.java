@@ -2,6 +2,8 @@ package io.github.seonwkim.actor.internal.cluster;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
+import io.github.seonwkim.actor.cluster.ClusterMember;
+import io.github.seonwkim.actor.cluster.SpringCluster;
 import io.github.seonwkim.actor.internal.ClusterSupport;
 import io.github.seonwkim.actor.internal.shard.PekkoShardedActorBuilder;
 import io.github.seonwkim.actor.internal.shard.PekkoSharding;
@@ -12,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.pekko.actor.setup.ActorSystemSetup;
 import org.apache.pekko.actor.setup.Setup;
@@ -20,6 +23,7 @@ import org.apache.pekko.actor.typed.ActorSystem;
 import org.apache.pekko.actor.typed.Behavior;
 import org.apache.pekko.actor.typed.Props;
 import org.apache.pekko.cluster.ClusterEvent.ClusterDomainEvent;
+import org.apache.pekko.cluster.Member;
 import org.apache.pekko.cluster.ddata.typed.javadsl.DistributedData;
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.apache.pekko.cluster.typed.Cluster;
@@ -137,6 +141,11 @@ public final class PekkoClusterSupport implements ClusterSupport {
         }
 
         @Override
+        public SpringCluster members() {
+            return new PekkoCluster(cluster);
+        }
+
+        @Override
         public <T> SpringShardedActorBuilder<T> sharded(Class<? extends SpringShardedActor<T>> actorClass) {
             SpringShardedActor<T> actor = shardedActors.getByClass(actorClass);
             if (actor == null) {
@@ -162,6 +171,22 @@ public final class PekkoClusterSupport implements ClusterSupport {
             for (SpringShardedActor<?> actor : shardedActors.getAll()) {
                 PekkoSharding.init(system, sharding, actor);
             }
+        }
+    }
+
+    /** {@link SpringCluster} on this node's Pekko cluster view; each call reads the current state. */
+    private record PekkoCluster(Cluster cluster) implements SpringCluster {
+        @Override
+        public ClusterMember self() {
+            return PekkoClusterEvents.member(cluster.selfMember());
+        }
+
+        @Override
+        public List<ClusterMember> members() {
+            return StreamSupport.stream(cluster.state().getMembers().spliterator(), false)
+                    .sorted(Member.ageOrdering()::compare)
+                    .map(PekkoClusterEvents::member)
+                    .toList();
         }
     }
 }

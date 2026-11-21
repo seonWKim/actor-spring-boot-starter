@@ -11,6 +11,11 @@
   implements the new `GenerationStamped` (`long epoch()`) can be handled with
   `generation.ifCurrent((ctx, msg) -> ...)`, which drops a message of an older epoch and logs a warning
   instead of running the handler.
+- **This node and the current members (#266).** `actorSystem.cluster().self()` is this node's member and
+  `actorSystem.cluster().members()` lists the members it sees now, oldest first. Outside cluster mode the node
+  is the only member, `UP` and without roles. `ClusterMember` gains `host()` and `port()`, read from its
+  address. The cluster formation guide shows how to tell nodes apart with `spring.actor.cluster.roles`
+  instead of their ports.
 
 ### Fixes
 

@@ -1,5 +1,6 @@
 package io.github.seonwkim.actor.internal;
 
+import io.github.seonwkim.actor.cluster.SpringCluster;
 import io.github.seonwkim.actor.shard.SpringShardedActor;
 import io.github.seonwkim.actor.shard.SpringShardedActorBuilder;
 import java.util.List;
@@ -54,6 +55,9 @@ public interface ClusterSupport {
 
         /** The engine objects {@code SpringActorSystem.unwrap} may return (cluster, sharding, ...). */
         List<Object> engineObjects();
+
+        /** This node and the members it sees. */
+        SpringCluster members();
 
         /** A builder for handles to entities of a registered sharded actor class. */
         <T> SpringShardedActorBuilder<T> sharded(Class<? extends SpringShardedActor<T>> actorClass);
