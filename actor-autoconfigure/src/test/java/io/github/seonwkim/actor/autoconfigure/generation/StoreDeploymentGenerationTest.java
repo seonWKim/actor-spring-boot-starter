@@ -3,9 +3,16 @@ package io.github.seonwkim.actor.autoconfigure.generation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import io.github.seonwkim.actor.SpringActorBehavior;
 import io.github.seonwkim.actor.delivery.StaleGenerationException;
 import io.github.seonwkim.actor.generation.ActivationEvent;
 import io.github.seonwkim.actor.generation.ActivationResult.Outcome;
+import io.github.seonwkim.actor.generation.DeploymentGeneration;
+import io.github.seonwkim.actor.generation.GenerationStamped;
 import io.github.seonwkim.actor.test.InMemoryGenerationStore;
 import java.time.Clock;
 import java.time.Duration;
@@ -13,9 +20,11 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
-/** Fencing with the epoch, and the audit of every attempt. */
+/** Fencing with the epoch, a handler that drops stale messages, and the audit of every attempt. */
 class StoreDeploymentGenerationTest {
 
     private final InMemoryGenerationStore store = new InMemoryGenerationStore();
@@ -89,6 +98,39 @@ class StoreDeploymentGenerationTest {
                 .containsExactly(Outcome.ACTIVATED, Outcome.ALREADY_ACTIVATED, Outcome.EPOCH_MISMATCH);
         assertThat(events.get(2).operationId()).isEqualTo("deploy-2");
         assertThat(events.get(2).deployment()).isEqualTo("orders");
+    }
+
+    record Charge(String orderId, long epoch) implements GenerationStamped {}
+
+    @Test
+    void aCheckingHandlerDropsAndLogsAMessageStampedBeforeAnotherColorWasActivated() {
+        StoreDeploymentGeneration blue = node("blue");
+        StoreDeploymentGeneration green = node("green");
+        blue.activate("blue", 0, "deploy-1");
+        Charge stale = new Charge("order-1", blue.stamp());
+        green.activate("green", 1, "deploy-2");
+        Charge current = new Charge("order-2", green.stamp());
+        List<String> charged = new ArrayList<>();
+        BiFunction<Object, Charge, SpringActorBehavior<Object>> handler = green.ifCurrent((state, msg) -> {
+            charged.add(msg.orderId());
+            return SpringActorBehavior.stopped();
+        });
+        Logger logger = (Logger) LoggerFactory.getLogger(DeploymentGeneration.class);
+        ListAppender<ILoggingEvent> logged = new ListAppender<>();
+        logged.start();
+        logger.addAppender(logged);
+        try {
+            assertThat(handler.apply(new Object(), stale)).isSameAs(SpringActorBehavior.same());
+            assertThat(handler.apply(new Object(), current)).isSameAs(SpringActorBehavior.stopped());
+        } finally {
+            logger.detachAppender(logged);
+        }
+
+        assertThat(charged).containsExactly("order-2");
+        assertThat(logged.list).singleElement().satisfies(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.WARN);
+            assertThat(event.getFormattedMessage()).contains("Charge", "epoch 1");
+        });
     }
 
     private static final class MutableClock extends Clock {
