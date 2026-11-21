@@ -328,14 +328,15 @@
 }
 
 .md-typeset .asb-hero__mark {
-  width: 3rem;
-  height: 3rem;
+  width: 2.6rem;
+  height: 2.6rem;
 }
 
 .md-typeset .asb-hero h1 {
-  font-size: 1.9rem;
+  font-size: clamp(1.05rem, 2.45vw, 1.6rem);
   line-height: 1.15;
   margin: 0;
+  white-space: nowrap;
 }
 
 .asb-hero + h2 {
@@ -380,12 +381,12 @@
   }
 
   .md-typeset .asb-hero h1 {
-    font-size: 1.4rem;
+    font-size: clamp(1rem, 5.6vw, 1.6rem);
   }
 
   .md-typeset .asb-hero__mark {
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 2rem;
+    height: 2rem;
   }
 }
 
