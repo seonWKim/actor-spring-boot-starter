@@ -1,8 +1,13 @@
 package io.github.seonwkim.actor.jdbc;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.testcontainers.containers.JdbcDatabaseContainer;
@@ -30,6 +35,31 @@ final class TestDatabases {
 
     static DataSource mysql() {
         return withSchema(started(MYSQL), "mysql");
+    }
+
+    /**
+     * {@code dataSource} as a pool with {@code auto-commit: false} hands it out: each connection comes
+     * without auto-commit, and what was not committed is rolled back when it is closed (returned).
+     */
+    static DataSource withoutAutoCommit(DataSource dataSource) {
+        return new DelegatingDataSource(dataSource) {
+            @Override
+            public Connection getConnection() throws SQLException {
+                Connection connection = super.getConnection();
+                connection.setAutoCommit(false);
+                return (Connection) Proxy.newProxyInstance(
+                        Connection.class.getClassLoader(), new Class<?>[] {Connection.class}, (proxy, method, args) -> {
+                            if (method.getName().equals("close") && !connection.isClosed()) {
+                                connection.rollback();
+                            }
+                            try {
+                                return method.invoke(connection, args);
+                            } catch (InvocationTargetException e) {
+                                throw e.getCause();
+                            }
+                        });
+            }
+        };
     }
 
     private static synchronized DataSource started(JdbcDatabaseContainer<?> database) {

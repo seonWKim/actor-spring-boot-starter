@@ -42,19 +42,22 @@ public final class JdbcPeerRegistry implements PeerRegistry {
 
     @Override
     public void register(Peer peer) {
-        try (Connection connection = dataSource.getConnection()) {
-            if (write(connection, UPDATE, peer) > 0) {
-                return;
-            }
-            try {
-                write(connection, INSERT, peer);
-            } catch (SQLException e) {
-                // Another writer inserted the same row since our update: update it instead.
-                if (!Jdbc.isDuplicateKey(e)) {
-                    throw e;
+        try {
+            Jdbc.withConnection(dataSource, connection -> {
+                if (write(connection, UPDATE, peer) > 0) {
+                    return true;
                 }
-                write(connection, UPDATE, peer);
-            }
+                try {
+                    write(connection, INSERT, peer);
+                } catch (SQLException e) {
+                    // Another writer inserted the same row since our update: update it instead.
+                    if (!Jdbc.isDuplicateKey(e)) {
+                        throw e;
+                    }
+                    write(connection, UPDATE, peer);
+                }
+                return true;
+            });
         } catch (SQLException e) {
             throw new IllegalStateException("Could not register " + peer + " in actor_peer", e);
         }
@@ -72,11 +75,14 @@ public final class JdbcPeerRegistry implements PeerRegistry {
 
     @Override
     public void deregister(Peer peer) {
-        try (Connection connection = dataSource.getConnection();
-                PreparedStatement statement = connection.prepareStatement(DELETE)) {
-            statement.setString(1, peer.service());
-            statement.setString(2, peer.id());
-            statement.executeUpdate();
+        try {
+            Jdbc.withConnection(dataSource, connection -> {
+                try (PreparedStatement statement = connection.prepareStatement(DELETE)) {
+                    statement.setString(1, peer.service());
+                    statement.setString(2, peer.id());
+                    return statement.executeUpdate();
+                }
+            });
         } catch (SQLException e) {
             throw new IllegalStateException("Could not deregister " + peer + " from actor_peer", e);
         }
@@ -84,19 +90,22 @@ public final class JdbcPeerRegistry implements PeerRegistry {
 
     @Override
     public List<Peer> peers(String service, Duration ttl) {
-        try (Connection connection = dataSource.getConnection()) {
-            Timestamp oldest = Timestamp.from(Jdbc.now(connection).toInstant().minus(ttl));
-            try (PreparedStatement statement = connection.prepareStatement(SELECT)) {
-                statement.setString(1, service);
-                statement.setTimestamp(2, oldest);
-                try (ResultSet rows = statement.executeQuery()) {
-                    List<Peer> peers = new ArrayList<>();
-                    while (rows.next()) {
-                        peers.add(new Peer(service, rows.getString(1), rows.getString(2), rows.getInt(3)));
+        try {
+            return Jdbc.withConnection(dataSource, connection -> {
+                Timestamp oldest =
+                        Timestamp.from(Jdbc.now(connection).toInstant().minus(ttl));
+                try (PreparedStatement statement = connection.prepareStatement(SELECT)) {
+                    statement.setString(1, service);
+                    statement.setTimestamp(2, oldest);
+                    try (ResultSet rows = statement.executeQuery()) {
+                        List<Peer> peers = new ArrayList<>();
+                        while (rows.next()) {
+                            peers.add(new Peer(service, rows.getString(1), rows.getString(2), rows.getInt(3)));
+                        }
+                        return peers;
                     }
-                    return peers;
                 }
-            }
+            });
         } catch (SQLException e) {
             throw new IllegalStateException("Could not read the peers of " + service + " from actor_peer", e);
         }

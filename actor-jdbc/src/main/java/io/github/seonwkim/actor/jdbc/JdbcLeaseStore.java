@@ -35,26 +35,31 @@ public final class JdbcLeaseStore implements LeaseStore {
 
     @Override
     public boolean tryAcquire(String lease, String owner, Duration ttl) {
-        try (Connection connection = dataSource.getConnection()) {
-            Timestamp now = Jdbc.now(connection);
-            Timestamp expires = plus(now, ttl);
-            if (take(connection, lease, owner, now, expires)) {
-                return true;
-            }
-            try (PreparedStatement insert = connection.prepareStatement(INSERT)) {
-                insert.setString(1, owner);
-                insert.setTimestamp(2, expires);
-                insert.setString(3, lease);
-                return insert.executeUpdate() == 1;
-            } catch (SQLException e) {
-                if (!Jdbc.isDuplicateKey(e)) {
-                    throw e;
-                }
-                // Another owner inserted it first: it holds the lease, unless that already expired.
-                return take(connection, lease, owner, now, expires);
-            }
+        try {
+            return Jdbc.withConnection(dataSource, connection -> acquire(connection, lease, owner, ttl));
         } catch (SQLException e) {
             throw new IllegalStateException("Could not acquire lease " + lease + " in actor_lease", e);
+        }
+    }
+
+    private static boolean acquire(Connection connection, String lease, String owner, Duration ttl)
+            throws SQLException {
+        Timestamp now = Jdbc.now(connection);
+        Timestamp expires = plus(now, ttl);
+        if (take(connection, lease, owner, now, expires)) {
+            return true;
+        }
+        try (PreparedStatement insert = connection.prepareStatement(INSERT)) {
+            insert.setString(1, owner);
+            insert.setTimestamp(2, expires);
+            insert.setString(3, lease);
+            return insert.executeUpdate() == 1;
+        } catch (SQLException e) {
+            if (!Jdbc.isDuplicateKey(e)) {
+                throw e;
+            }
+            // Another owner inserted it first: it holds the lease, unless that already expired.
+            return take(connection, lease, owner, now, expires);
         }
     }
 
@@ -72,15 +77,17 @@ public final class JdbcLeaseStore implements LeaseStore {
 
     @Override
     public boolean renew(String lease, String owner, Duration ttl) {
-        try (Connection connection = dataSource.getConnection()) {
-            Timestamp now = Jdbc.now(connection);
-            try (PreparedStatement renew = connection.prepareStatement(RENEW)) {
-                renew.setTimestamp(1, plus(now, ttl));
-                renew.setString(2, lease);
-                renew.setString(3, owner);
-                renew.setTimestamp(4, now);
-                return renew.executeUpdate() == 1;
-            }
+        try {
+            return Jdbc.withConnection(dataSource, connection -> {
+                Timestamp now = Jdbc.now(connection);
+                try (PreparedStatement renew = connection.prepareStatement(RENEW)) {
+                    renew.setTimestamp(1, plus(now, ttl));
+                    renew.setString(2, lease);
+                    renew.setString(3, owner);
+                    renew.setTimestamp(4, now);
+                    return renew.executeUpdate() == 1;
+                }
+            });
         } catch (SQLException e) {
             throw new IllegalStateException("Could not renew lease " + lease + " in actor_lease", e);
         }
@@ -88,11 +95,14 @@ public final class JdbcLeaseStore implements LeaseStore {
 
     @Override
     public void release(String lease, String owner) {
-        try (Connection connection = dataSource.getConnection();
-                PreparedStatement release = connection.prepareStatement(RELEASE)) {
-            release.setString(1, lease);
-            release.setString(2, owner);
-            release.executeUpdate();
+        try {
+            Jdbc.withConnection(dataSource, connection -> {
+                try (PreparedStatement release = connection.prepareStatement(RELEASE)) {
+                    release.setString(1, lease);
+                    release.setString(2, owner);
+                    return release.executeUpdate();
+                }
+            });
         } catch (SQLException e) {
             throw new IllegalStateException("Could not release lease " + lease + " in actor_lease", e);
         }
@@ -100,15 +110,17 @@ public final class JdbcLeaseStore implements LeaseStore {
 
     @Override
     public Optional<String> holder(String lease) {
-        try (Connection connection = dataSource.getConnection()) {
-            Timestamp now = Jdbc.now(connection);
-            try (PreparedStatement holder = connection.prepareStatement(HOLDER)) {
-                holder.setString(1, lease);
-                holder.setTimestamp(2, now);
-                try (ResultSet row = holder.executeQuery()) {
-                    return row.next() ? Optional.of(row.getString(1)) : Optional.empty();
+        try {
+            return Jdbc.withConnection(dataSource, connection -> {
+                Timestamp now = Jdbc.now(connection);
+                try (PreparedStatement holder = connection.prepareStatement(HOLDER)) {
+                    holder.setString(1, lease);
+                    holder.setTimestamp(2, now);
+                    try (ResultSet row = holder.executeQuery()) {
+                        return row.next() ? Optional.of(row.getString(1)) : Optional.<String>empty();
+                    }
                 }
-            }
+            });
         } catch (SQLException e) {
             throw new IllegalStateException("Could not read lease " + lease + " from actor_lease", e);
         }
