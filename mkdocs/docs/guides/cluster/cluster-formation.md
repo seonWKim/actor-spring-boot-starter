@@ -79,6 +79,11 @@ The entries live in the `actor_peer` table. `spring.actor.jdbc.initialize-schema
 yourself, for example in a Flyway or Liquibase migration, from the schema file for your database in the
 `actor-jdbc` jar: `io/github/seonwkim/actor/jdbc/schema-{h2,postgresql,mysql,mariadb}.sql`.
 
+With `always`, nodes that start together each run the script. On PostgreSQL they take an advisory lock
+first and create the tables one at a time, since concurrent `CREATE TABLE IF NOT EXISTS` fails there. For
+production, prefer `never` with a migration (Flyway, Liquibase or a one-off job), so the application's
+database user needs no `CREATE` rights.
+
 ```sql
 CREATE TABLE IF NOT EXISTS actor_peer (
     service_name VARCHAR(200) NOT NULL,

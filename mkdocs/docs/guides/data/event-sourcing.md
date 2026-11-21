@@ -173,7 +173,7 @@ The journal (`event_journal`, `event_tag`) and the snapshots (`snapshot`) are th
 | Value | When |
 |---|---|
 | `embedded` (default) | Only in an embedded database, such as H2 in tests |
-| `always` | On every start (the scripts use `CREATE TABLE IF NOT EXISTS`) |
+| `always` | On every start (the scripts use `CREATE TABLE IF NOT EXISTS`; on PostgreSQL, nodes starting together take turns through an advisory lock) |
 | `never` | You create them, for example with Flyway |
 
 The scripts are in the `actor-persistence` jar as `io/github/seonwkim/actor/persistence/schema-<db>.sql`
