@@ -125,7 +125,8 @@ public class Nodes {
                 .filter(n -> n.node >= first && n.color.equals(color) && !n.process.isAlive())
                 .mapToInt(n -> n.node)
                 .min()
-                .orElseGet(() -> Math.max(first, all().stream().mapToInt(n -> n.node + 1).max().orElse(first)));
+                .orElseGet(() -> Math.max(
+                        first, all().stream().mapToInt(n -> n.node + 1).max().orElse(first)));
     }
 
     public List<NodeProcess> all() {
@@ -145,10 +146,9 @@ public class Nodes {
     /** A node of the color that answers: an up one first, else one that has HTTP. */
     public Optional<NodeProcess> serving(String color) {
         List<NodeProcess> live = live(color);
-        return live.stream()
-                .filter(NodeProcess::up)
-                .findFirst()
-                .or(() -> live.stream().filter(n -> "joining".equals(n.status)).findFirst());
+        return live.stream().filter(NodeProcess::up).findFirst().or(() -> live.stream()
+                .filter(n -> "joining".equals(n.status))
+                .findFirst());
     }
 
     public WebClient client() {

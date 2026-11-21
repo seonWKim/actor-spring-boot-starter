@@ -30,9 +30,7 @@ public class ChatCluster {
     private final int node;
     private volatile SpringActorHandle<ChatSimulatorActor.Command> simulator;
 
-    public ChatCluster(
-            SpringActorSystem actorSystem,
-            @Value("${sharded-chat.node:1}") int node) {
+    public ChatCluster(SpringActorSystem actorSystem, @Value("${sharded-chat.node:1}") int node) {
         this.actorSystem = actorSystem;
         this.node = node;
     }

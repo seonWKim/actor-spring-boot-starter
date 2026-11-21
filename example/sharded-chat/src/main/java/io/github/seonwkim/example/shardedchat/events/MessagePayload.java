@@ -45,7 +45,8 @@ public final class MessagePayload {
         if (type.isRecord()) {
             for (RecordComponent component : type.getRecordComponents()) {
                 try {
-                    parts.add(component.getName() + "=" + component.getAccessor().invoke(message));
+                    parts.add(
+                            component.getName() + "=" + component.getAccessor().invoke(message));
                 } catch (ReflectiveOperationException e) {
                     parts.add(component.getName() + "=?");
                 }

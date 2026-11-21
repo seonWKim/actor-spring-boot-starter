@@ -106,7 +106,8 @@ public class ChatEvents {
     public List<ChatEvent> logs() {
         Instant cutoff = Instant.now().minus(RETENTION);
         synchronized (logs) {
-            while (!logs.isEmpty() && Instant.parse(logs.peekFirst().timestamp()).isBefore(cutoff)) {
+            while (!logs.isEmpty()
+                    && Instant.parse(logs.peekFirst().timestamp()).isBefore(cutoff)) {
                 logs.removeFirst();
             }
             return List.copyOf(logs);

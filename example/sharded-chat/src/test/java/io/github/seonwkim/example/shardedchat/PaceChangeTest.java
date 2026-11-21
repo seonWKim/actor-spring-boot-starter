@@ -23,7 +23,11 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
-        properties = {"sharded-chat.rooms=2", "sharded-chat.users=20", "sharded-chat.message-rate=10", "sharded-chat.seed=7"
+        properties = {
+            "sharded-chat.rooms=2",
+            "sharded-chat.users=20",
+            "sharded-chat.message-rate=10",
+            "sharded-chat.seed=7"
         })
 class PaceChangeTest {
 
@@ -61,8 +65,7 @@ class PaceChangeTest {
 
         // At the new pace (4 s each) the 20 users post 5 times a second. Had each waited at least half the
         // pace, none would post for 2 s.
-        await().atMost(Duration.ofMillis(1500))
-                .until(() -> posts.stream().anyMatch(at -> at > changed));
+        await().atMost(Duration.ofMillis(1500)).until(() -> posts.stream().anyMatch(at -> at > changed));
         assertThat(posts).anyMatch(at -> at > changed);
     }
 }

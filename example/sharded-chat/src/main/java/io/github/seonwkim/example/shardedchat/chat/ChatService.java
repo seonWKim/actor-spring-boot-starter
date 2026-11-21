@@ -59,13 +59,12 @@ public class ChatService {
 
     /** Opens one room now; the stage fails with {@link InvalidFieldException} when it cannot. */
     public CompletionStage<ChatSimulatorActor.RoomAdded> addRoom(Long number) {
-        return askSimulator(new ChatSimulatorActor.AddRoom(number))
-                .thenApply(added -> {
-                    if (added.refused() != null) {
-                        throw new InvalidFieldException(number == null ? "rooms" : "number", added.refused());
-                    }
-                    return added;
-                });
+        return askSimulator(new ChatSimulatorActor.AddRoom(number)).thenApply(added -> {
+            if (added.refused() != null) {
+                throw new InvalidFieldException(number == null ? "rooms" : "number", added.refused());
+            }
+            return added;
+        });
     }
 
     /** Sends text from the page to one user of the run. */
@@ -97,14 +96,13 @@ public class ChatService {
 
     // A message to an id outside the run would start an entity the simulator then stops: refuse it.
     private CompletionStage<Boolean> known(String id, String field) {
-        return askSimulator(new ChatSimulatorActor.Has(id))
-                .thenApply(known -> {
-                    if (!known) {
-                        String kind = id.startsWith(ChatSimulatorActor.ROOM_PREFIX) ? "room" : "user";
-                        throw new InvalidFieldException(field, "Unknown " + kind + ": " + id);
-                    }
-                    return true;
-                });
+        return askSimulator(new ChatSimulatorActor.Has(id)).thenApply(known -> {
+            if (!known) {
+                String kind = id.startsWith(ChatSimulatorActor.ROOM_PREFIX) ? "room" : "user";
+                throw new InvalidFieldException(field, "Unknown " + kind + ": " + id);
+            }
+            return true;
+        });
     }
 
     private static <R> CompletionStage<Delivery> replied(

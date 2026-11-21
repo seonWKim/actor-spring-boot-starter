@@ -119,9 +119,10 @@ public class Deployer {
         String operationId = "activate-" + color + "-" + versions.get(color) + "-after-epoch-" + expected;
         busy = true;
         try {
-            Nodes.Activation result =
-                    nodes.activate(node.get().node, color, expected, operationId).block(Duration.ofSeconds(6));
-            String outcome = result == null ? "no answer" : result.body().path("outcome").asText("HTTP " + result.status());
+            Nodes.Activation result = nodes.activate(node.get().node, color, expected, operationId)
+                    .block(Duration.ofSeconds(6));
+            String outcome =
+                    result == null ? "no answer" : result.body().path("outcome").asText("HTTP " + result.status());
             JsonNode generation = result == null ? null : result.body().path("generation");
             if (result != null && result.status() == 200 && generation != null && generation.isObject()) {
                 Active next = toActive(generation);
@@ -246,8 +247,8 @@ public class Deployer {
             boolean standby = current != null && !current.color().equals(color);
             events.deploy(
                     "info",
-                    color + " " + versions.get(color) + ": " + live.size() + " of " + live.size()
-                            + " nodes warmed up" + (standby ? "; ready to activate" : ""));
+                    color + " " + versions.get(color) + ": " + live.size() + " of " + live.size() + " nodes warmed up"
+                            + (standby ? "; ready to activate" : ""));
         }
     }
 

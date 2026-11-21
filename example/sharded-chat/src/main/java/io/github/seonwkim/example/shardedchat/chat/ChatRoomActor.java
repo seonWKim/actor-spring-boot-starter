@@ -2,9 +2,9 @@ package io.github.seonwkim.example.shardedchat.chat;
 
 import io.github.seonwkim.actor.AskCommand;
 import io.github.seonwkim.actor.SpringActorBehavior;
+import io.github.seonwkim.actor.SpringBehaviorContext;
 import io.github.seonwkim.actor.delivery.StaleGenerationException;
 import io.github.seonwkim.actor.generation.DeploymentGeneration;
-import io.github.seonwkim.actor.SpringBehaviorContext;
 import io.github.seonwkim.actor.serialization.JsonSerializable;
 import io.github.seonwkim.actor.shard.ShardedEntityType;
 import io.github.seonwkim.actor.shard.SpringShardedActor;
@@ -152,8 +152,8 @@ public class ChatRoomActor implements SpringShardedActor<ChatRoomActor.Command> 
                                 me,
                                 ChatEvent.WARN,
                                 "fenced",
-                                "refused a post from " + msg.from + " stamped with epoch " + msg.epoch
-                                        + ": " + generation.color() + " is no longer the active generation");
+                                "refused a post from " + msg.from + " stamped with epoch " + msg.epoch + ": "
+                                        + generation.color() + " is no longer the active generation");
                         events.message(me, msg.from, Boolean.FALSE);
                         msg.reply(false);
                         return SpringActorBehavior.same();

@@ -2,8 +2,8 @@ package io.github.seonwkim.example.shardedchat.chat;
 
 import io.github.seonwkim.actor.AskCommand;
 import io.github.seonwkim.actor.SpringActorBehavior;
-import io.github.seonwkim.actor.generation.DeploymentGeneration;
 import io.github.seonwkim.actor.SpringBehaviorContext;
+import io.github.seonwkim.actor.generation.DeploymentGeneration;
 import io.github.seonwkim.actor.serialization.JsonSerializable;
 import io.github.seonwkim.actor.shard.ShardedEntityType;
 import io.github.seonwkim.actor.shard.SpringShardedActor;
@@ -34,8 +34,26 @@ public class ChatUserActor implements SpringShardedActor<ChatUserActor.Command> 
     public static final ShardedEntityType<Command> TYPE = ShardedEntityType.of(Command.class, TYPE_NAME);
     public static final Duration REPLY_TIMEOUT = Duration.ofSeconds(1);
     static final List<String> WORDS = List.of(
-            "hello", "actor", "mailbox", "ping", "pong", "coffee", "deploy", "ring", "message", "lunch",
-            "supervisor", "restart", "stream", "ok", "thanks", "later", "ship", "it", "nice", "why");
+            "hello",
+            "actor",
+            "mailbox",
+            "ping",
+            "pong",
+            "coffee",
+            "deploy",
+            "ring",
+            "message",
+            "lunch",
+            "supervisor",
+            "restart",
+            "stream",
+            "ok",
+            "thanks",
+            "later",
+            "ship",
+            "it",
+            "nice",
+            "why");
     private static final Object TICK = "tick";
     private static final Object GREET = "greet";
     private static final Duration GREET_EVERY = Duration.ofSeconds(1);
@@ -189,8 +207,8 @@ public class ChatUserActor implements SpringShardedActor<ChatUserActor.Command> 
                                 me,
                                 ChatEvent.WARN,
                                 "timeout",
-                                "no reply from " + msg.roomId() + " within " + REPLY_TIMEOUT.toMillis()
-                                        + " ms to \"" + msg.text() + "\"");
+                                "no reply from " + msg.roomId() + " within " + REPLY_TIMEOUT.toMillis() + " ms to \""
+                                        + msg.text() + "\"");
                     }
                     cluster.simulator().tell(new ChatSimulatorActor.Outcome(me, msg.ok()));
                     return SpringActorBehavior.same();
@@ -223,7 +241,10 @@ public class ChatUserActor implements SpringShardedActor<ChatUserActor.Command> 
                 post,
                 REPLY_TIMEOUT,
                 (ok, error) -> new Replied(
-                        roomId, text, error == null && Boolean.TRUE.equals(ok), error == null && Boolean.FALSE.equals(ok)));
+                        roomId,
+                        text,
+                        error == null && Boolean.TRUE.equals(ok),
+                        error == null && Boolean.FALSE.equals(ok)));
     }
 
     // Uniform between half and one and a half of the pace; a new timer replaces the running one.

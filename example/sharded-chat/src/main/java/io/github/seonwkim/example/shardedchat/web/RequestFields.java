@@ -41,7 +41,8 @@ final class RequestFields {
     /** The field as text of 1 to maxLength characters after trimming. */
     static String text(JsonNode body, String field, int maxLength) {
         JsonNode value = body == null ? null : body.get(field);
-        String text = value == null || !value.isTextual() ? "" : value.textValue().trim();
+        String text =
+                value == null || !value.isTextual() ? "" : value.textValue().trim();
         if (text.isEmpty() || text.length() > maxLength) {
             throw new InvalidFieldException(field, field + " must be text of 1 to " + maxLength + " characters");
         }

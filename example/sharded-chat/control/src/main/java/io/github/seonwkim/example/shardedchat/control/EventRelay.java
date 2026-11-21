@@ -20,7 +20,8 @@ import reactor.core.Disposable;
 @Component
 public class EventRelay {
 
-    private static final ParameterizedTypeReference<ServerSentEvent<String>> EVENT = new ParameterizedTypeReference<>() {};
+    private static final ParameterizedTypeReference<ServerSentEvent<String>> EVENT =
+            new ParameterizedTypeReference<>() {};
 
     private final Nodes nodes;
     private final ControlEvents events;

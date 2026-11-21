@@ -165,8 +165,8 @@ public class ApiController {
         }
         return blocking(() -> deployer.addNode(color)
                 .map(node -> ok("adding node " + node + " to " + color))
-                .orElseGet(() -> refuse(color + " is not running, or already runs "
-                        + ControlProperties.MAX_PER_COLOR + " nodes")));
+                .orElseGet(() -> refuse(
+                        color + " is not running, or already runs " + ControlProperties.MAX_PER_COLOR + " nodes")));
     }
 
     @PostMapping("/api/cluster/nodes/{node}/stop")
@@ -201,7 +201,9 @@ public class ApiController {
             c.put("version", deployer.version(color).orElse(null));
             c.put("nodes", live.size());
             c.put("up", live.stream().filter(NodeProcess::up).count());
-            c.put("role", live.isEmpty() ? "none" : active != null && active.color().equals(color) ? "active" : "standby");
+            c.put(
+                    "role",
+                    live.isEmpty() ? "none" : active != null && active.color().equals(color) ? "active" : "standby");
         }
         out.put("busy", deployer.busy());
         ObjectNode actions = out.putObject("next");
@@ -270,10 +272,13 @@ public class ApiController {
             return Mono.just(error(HttpStatus.SERVICE_UNAVAILABLE, "no " + color + " node is up"));
         }
         var request = nodes.client().method(method).uri(Nodes.base(node.get().node) + path);
-        var withBody = body == null ? request : request.contentType(MediaType.APPLICATION_JSON).bodyValue(body);
+        var withBody = body == null
+                ? request
+                : request.contentType(MediaType.APPLICATION_JSON).bodyValue(body);
         return withBody.exchangeToMono(response -> response.bodyToMono(JsonNode.class)
                         .defaultIfEmpty(json.createObjectNode())
-                        .map(reply -> ResponseEntity.status(response.statusCode()).body(Ids.qualify(reply, color))))
+                        .map(reply ->
+                                ResponseEntity.status(response.statusCode()).body(Ids.qualify(reply, color))))
                 .timeout(java.time.Duration.ofSeconds(6))
                 .onErrorResume(e -> Mono.just(error(HttpStatus.SERVICE_UNAVAILABLE, color + " did not answer")));
     }

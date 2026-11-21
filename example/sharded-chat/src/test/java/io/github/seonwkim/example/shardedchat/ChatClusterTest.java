@@ -25,7 +25,11 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
-        properties = {"sharded-chat.rooms=2", "sharded-chat.users=6", "sharded-chat.message-rate=0", "sharded-chat.seed=7"
+        properties = {
+            "sharded-chat.rooms=2",
+            "sharded-chat.users=6",
+            "sharded-chat.message-rate=0",
+            "sharded-chat.seed=7"
         })
 class ChatClusterTest {
     private static final Duration WAIT = Duration.ofSeconds(20);
@@ -61,11 +65,14 @@ class ChatClusterTest {
     void aBroadcastReachesEveryMemberAndEachDeliveryIsAMessageEvent() {
         List<ChatEvent> seen = new CopyOnWriteArrayList<>();
         events.stream().subscribe(seen::add);
-        ChatSimulatorActor.RoomView room = await().atMost(WAIT).ignoreExceptions()
-                .until(() -> state().rooms().stream()
-                        .filter(r -> !r.members().isEmpty() && r.node() != null)
-                        .findFirst()
-                        .orElse(null), r -> r != null);
+        ChatSimulatorActor.RoomView room = await().atMost(WAIT)
+                .ignoreExceptions()
+                .until(
+                        () -> state().rooms().stream()
+                                .filter(r -> !r.members().isEmpty() && r.node() != null)
+                                .findFirst()
+                                .orElse(null),
+                        r -> r != null);
 
         ChatService.Delivery delivery =
                 chat.broadcast(room.id(), "hi all").toCompletableFuture().join();

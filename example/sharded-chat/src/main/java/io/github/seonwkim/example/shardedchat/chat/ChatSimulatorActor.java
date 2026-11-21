@@ -3,9 +3,9 @@ package io.github.seonwkim.example.shardedchat.chat;
 import io.github.seonwkim.actor.AskCommand;
 import io.github.seonwkim.actor.SpringActor;
 import io.github.seonwkim.actor.SpringActorBehavior;
-import io.github.seonwkim.actor.generation.DeploymentGeneration;
 import io.github.seonwkim.actor.SpringActorContext;
 import io.github.seonwkim.actor.SpringBehaviorContext;
+import io.github.seonwkim.actor.generation.DeploymentGeneration;
 import io.github.seonwkim.actor.serialization.JsonSerializable;
 import io.github.seonwkim.example.shardedchat.events.ChatEvent;
 import io.github.seonwkim.example.shardedchat.events.ChatEvents;
@@ -149,10 +149,7 @@ public class ChatSimulatorActor implements SpringActor<ChatSimulatorActor.Comman
     private final DeploymentGeneration generation;
 
     public ChatSimulatorActor(
-            ChatCluster cluster,
-            ChatEvents events,
-            ChatProperties properties,
-            DeploymentGeneration generation) {
+            ChatCluster cluster, ChatEvents events, ChatProperties properties, DeploymentGeneration generation) {
         this.cluster = cluster;
         this.events = events;
         this.properties = properties;
@@ -301,7 +298,9 @@ public class ChatSimulatorActor implements SpringActor<ChatSimulatorActor.Comman
     private void start(State s) {
         s.started = true;
         s.sentPace = s.settings.pace().toMillis();
-        s.seed = properties.seed() != null ? properties.seed() : ThreadLocalRandom.current().nextLong();
+        s.seed = properties.seed() != null
+                ? properties.seed()
+                : ThreadLocalRandom.current().nextLong();
         s.spawnRandom = new Random(s.seed);
         s.random = new Random(s.seed + 1);
         if (s.settings.rooms() > 0) {
@@ -385,9 +384,8 @@ public class ChatSimulatorActor implements SpringActor<ChatSimulatorActor.Comman
         if (!s.rooms.isEmpty() && !s.users.isEmpty()) {
             String user = pick(s.random, List.copyOf(s.users.keySet()));
             Set<String> mine = s.users.get(user);
-            List<String> others = s.rooms.keySet().stream()
-                    .filter(r -> !mine.contains(r))
-                    .toList();
+            List<String> others =
+                    s.rooms.keySet().stream().filter(r -> !mine.contains(r)).toList();
             if (mine.isEmpty()) {
                 join(s, user, pick(s.random, others));
             } else {

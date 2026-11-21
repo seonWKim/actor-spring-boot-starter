@@ -12,6 +12,7 @@ public final class NodeProcess {
     final Process process;
     /** The node's output, in memory: its last {@link LogBuffer#LINES} lines. */
     final LogBuffer log;
+
     volatile String status = "starting";
     /** The active generation's color and epoch as this node reads them, null before the first read. */
     volatile String sees;
