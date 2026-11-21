@@ -22,6 +22,11 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-jdbc")
 	runtimeOnly("com.h2database:h2")
+	// The generation store on Kubernetes (k8s/postgres.yaml).
+	runtimeOnly("org.postgresql:postgresql")
+	// On Kubernetes the nodes find each other through the actor_peer table (spring.actor.cluster.join=discovery).
+	runtimeOnly("org.apache.pekko:pekko-management-cluster-bootstrap_3:${property("pekkoManagementVersion")}")
+	runtimeOnly("org.apache.pekko:pekko-management-cluster-http_3:${property("pekkoManagementVersion")}")
 
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.awaitility:awaitility")

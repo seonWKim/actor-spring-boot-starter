@@ -1,0 +1,133 @@
+# The green cluster: a StatefulSet, so each pod has a stable name, and so a stable node number. The pods
+# find each other through the actor_peer table under their system name (sharded-chat-green), so green
+# never meets the other color; addresses are pod IPs, so a restarted pod is never reached at an old one.
+# No replicas here: blue-green.sh owns them (deploy, retire) and kubectl scale changes them, so applying
+# these manifests again never undoes a scale. bin/k8s-up creates it with 0. Pod chat-green-<i> is node 50+i+1.
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-green
+  labels: { app: sharded-chat, color: green }
+spec:
+  # Headless: a DNS name per pod, published before the pods are ready (readiness waits for the cluster).
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: { app: sharded-chat, color: green }
+  ports:
+    - { name: http, port: 8080 }
+    - { name: remoting, port: 25520 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: chat-green
+spec:
+  # A node drain takes one chat pod at a time: its shards move before the next one goes.
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app: sharded-chat, color: green }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: chat-green
+  labels: { app: sharded-chat, color: green }
+spec:
+  serviceName: chat-green
+  # All pods start together; Cluster Bootstrap forms the cluster once it sees two of them.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: { app: sharded-chat, color: green }
+  template:
+    metadata:
+      labels: { app: sharded-chat, color: green, version: v1 }
+    spec:
+      # Leaving the cluster on purpose (coordinated shutdown) moves the pod's shards: give it time.
+      terminationGracePeriodSeconds: 45
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: { app: sharded-chat, color: green }
+      containers:
+        - name: chat
+          image: sharded-chat-node:dev
+          imagePullPolicy: IfNotPresent
+          # The node number comes from the pod's name; the rest is config.
+          command: ["sh", "-c"]
+          args:
+            - >-
+              exec java -XX:MaxRAMPercentage=50 -XX:+ExitOnOutOfMemoryError -jar /app/app.jar
+              --sharded-chat.node=$(( ${HOSTNAME##*-} + 50 + 1 ))
+              --spring.actor.pekko.remote.artery.bind.hostname=0.0.0.0
+              --spring.actor.pekko.management.http.hostname=${POD_IP}
+              --spring.actor.pekko.management.http.port=7626
+              --spring.actor.pekko.management.http.bind-hostname=0.0.0.0
+              --spring.actor.pekko.management.http.bind-port=7626
+          env:
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            # Discovery (cluster-formation guide): each pod writes its entry to actor_peer and Cluster
+            # Bootstrap joins the pods it lists, or forms the cluster when none is in one yet.
+            - { name: SPRING_ACTOR_NAME, value: sharded-chat-green }
+            # The generation record both colors share (it defaults to the system name, which differs).
+            - { name: SPRING_ACTOR_GENERATION_NAME, value: sharded-chat }
+            - { name: SPRING_ACTOR_CLUSTER_JOIN, value: discovery }
+            - { name: SPRING_ACTOR_CLUSTER_DISCOVERY_METHOD, value: jdbc }
+            - { name: SPRING_ACTOR_REMOTE_HOSTNAME, value: $(POD_IP) }
+            - { name: SERVER_PORT, value: "8080" }
+            - { name: SPRING_ACTOR_REMOTE_PORT, value: "25520" }
+            - { name: SPRING_ACTOR_GENERATION_COLOR, value: green }
+            - { name: SPRING_ACTOR_GENERATION_STORE, value: jdbc }
+            # The tables come from the chat-schema Job (schema.yaml), not from each pod.
+            - { name: SPRING_ACTOR_JDBC_INITIALIZE_SCHEMA, value: never }
+            - { name: SHARDED_CHAT_VERSION, value: v1 }
+            - { name: SHARDED_CHAT_START_WITH_NODES, value: "3" }
+            - { name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://postgres:5432/chat" }
+            - { name: SPRING_DATASOURCE_USERNAME, value: chat }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: chat-secrets, key: db-password } }
+            # Activation needs this user; blue-green.sh uses it from inside a pod, so it never leaves one.
+            - name: SHARDED_CHAT_DEPLOYER_PASSWORD
+              valueFrom: { secretKeyRef: { name: chat-secrets, key: deployer-password } }
+            - { name: JAVA_TOOL_OPTIONS, value: "-Djava.io.tmpdir=/tmp" }
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: remoting, containerPort: 25520 }
+            - { name: management, containerPort: 7626 }
+          # Half the limit is heap; the rest is off-heap: Pekko remoting's buffers, Netty, metaspace,
+          # threads. 512Mi was too little: pods taking over a lost node's shards were OOM-killed.
+          resources:
+            requests: { cpu: 250m, memory: 768Mi }
+            limits: { memory: 768Mi }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 2
+            failureThreshold: 60
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          # Ready once it is an Up member of its color's cluster with enough Up members.
+          readinessProbe:
+            httpGet: { path: /actuator/health/warmup, port: http }
+            periodSeconds: 3
+          lifecycle:
+            # Let endpoints and DNS stop sending to the pod before it starts leaving.
+            preStop: { sleep: { seconds: 5 } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}

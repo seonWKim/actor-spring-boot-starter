@@ -48,3 +48,27 @@ test('a message sent by hand from the page, and each room copy of a broadcast, i
   addFlow(state, direct, 0);
   assert.equal(pruneDots(state, FLOW_MS + 1), true);
 });
+
+test('a room sends on a post only once the post lands at the room', () => {
+  const state = createFlowState();
+  addFlow(state, flowOf(message('chat-user-4', 'chat-room-1', 'Post', 'Post{from=chat-user-4, text=hello, epoch=1}'), 0)!, 0);
+  // The room's events come in right after the post's, while the post is still on its way.
+  addFlow(state, flowOf(message('chat-room-1', 'chat-user-7', 'Deliver', 'Deliver{roomId=chat-room-1, from=chat-user-4, text=hello}'), 5)!, 5);
+  addFlow(state, flowOf(message('chat-room-1', 'chat-user-4', 'Boolean', 'true'), 6)!, 6);
+  addFlow(state, flowOf(message('chat-room-1', 'chat-user-8', 'Deliver', 'Deliver{roomId=chat-room-1, from=chat-user-9, text=other}'), 7)!, 7);
+  const [, deliver, reply, unrelated] = state.dots;
+  assert.equal(deliver.start, FLOW_MS);
+  assert.equal(reply.start, FLOW_MS);
+  assert.equal(unrelated.start, 7);
+});
+
+test("a room's history holds what it received, and counts what it sent", () => {
+  const state = createFlowState();
+  addFlow(state, flowOf(message('chat-user-4', 'chat-room-1', 'Post', 'Post{from=chat-user-4, text=hello}'), 0)!, 0);
+  for (const member of ['chat-user-7', 'chat-user-8', 'chat-user-9']) {
+    addFlow(state, flowOf(message('chat-room-1', member, 'Deliver', 'Deliver{roomId=chat-room-1, from=chat-user-4, text=hello}'), 1)!, 1);
+  }
+  assert.deepEqual(historyOf(state, 'chat-room-1').map((f) => f.type), ['Post']);
+  assert.deepEqual(countsOf(state, 'chat-room-1', 10), { sent: 3, received: 1 });
+  assert.equal(historyOf(state, 'chat-user-7').length, 1);
+});

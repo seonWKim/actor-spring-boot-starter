@@ -6,7 +6,7 @@ import { createFrameBatcher } from './lib/frameBatch.ts';
 import { openEventSource } from './lib/eventSource.ts';
 import { parseEvent, type ActorEvent } from './lib/events.ts';
 import { CONSOLE_LINE_PX, EMPTY_LOG, appendLines, clampConsoleHeight, defaultConsoleHeight, initialCollapsed, loadConsoleHeight, saveConsoleHeight } from './lib/log.ts';
-import { applyMember, type ClusterNode } from './lib/nodes.ts';
+import { applyMember, assignColours, type ClusterNode } from './lib/nodes.ts';
 import { nameOf } from './lib/persona.ts';
 import { useChatLogs } from './hooks/useChatLogs.ts';
 import { ActorDrawer } from './components/ActorDrawer.tsx';
@@ -35,6 +35,8 @@ export function App() {
   const api = useMemo(() => createApi(), []);
   const [graph, setGraph] = useState<ChatGraph>({ rooms: [], users: [] });
   const [nodes, setNodes] = useState<ClusterNode[]>([]);
+  // Before anything below draws a node: its colour follows its deployment color.
+  assignColours(nodes);
   const [deploy, setDeploy] = useState<DeployState>(NO_DEPLOY);
   const [panel, setPanel] = useState<Panel>(null);
   const [hover, setHover] = useState<{ id: string; at: Point } | null>(null);

@@ -11,13 +11,10 @@ spring:
       hostname: 127.0.0.1
       port: 2551
     cluster:
-      # The node's number as a role, so the others can tell it apart (ClusterMembers).
+      # The node's number and release as roles, so the others can tell it apart (ClusterMembers).
       roles:
         - node-${sharded-chat.node}
-      seed-nodes:
-        - pekko://sharded-chat@127.0.0.1:2551
-        - pekko://sharded-chat@127.0.0.1:2552
-        - pekko://sharded-chat@127.0.0.1:2553
+        - version-${sharded-chat.version}
       # When a node dies, the side with most nodes downs it, and its shards and the singleton move.
       downing:
         strategy: keep-majority

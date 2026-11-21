@@ -3,7 +3,10 @@
 // user's post goes user → room; the room then sends one Deliver to each member, room → member, so a
 // post visibly fans out to everyone who joined that room; the room's reply (true) goes back to the
 // poster. A message from the page or between two users goes straight from one to the other.
-// Every message is also kept, per actor, for the actor's panel: in memory only, the last few hundred.
+// The room's sends leave when the message that caused them lands, not when their events arrive (which is
+// at about the same time), so a post reaches the room first and then travels on to the members.
+// Every message is also kept, per actor, for the actor's panel: in memory only, the last few hundred. A
+// room keeps what it received; what it sends (one Deliver per member, a reply) it only counts.
 // Pure: no DOM; every call gets `now`.
 import { asText } from './api.ts';
 import type { ActorEvent } from './events.ts';
@@ -75,14 +78,16 @@ export function flowOf(event: ActorEvent, at: number): Flow | null {
 
 export interface FlowState {
   dots: FlowDot[];
-  /** Per actor: the messages it sent or received, oldest first, at most HISTORY. */
+  /** Per actor: the messages it sent or received, oldest first, at most HISTORY (a room: received). */
   history: Map<string, Flow[]>;
+  /** Per room: when it sent each of its last messages, for its sent count. */
+  sentAt: Map<string, number[]>;
   /** The process each actor was last seen sending from. */
   nodeOf: Map<string, number>;
 }
 
 export function createFlowState(): FlowState {
-  return { dots: [], history: new Map(), nodeOf: new Map() };
+  return { dots: [], history: new Map(), sentAt: new Map(), nodeOf: new Map() };
 }
 
 function remember(state: FlowState, id: string, flow: Flow) {
@@ -95,16 +100,40 @@ function remember(state: FlowState, id: string, flow: Flow) {
   if (list.length > HISTORY) list.splice(0, list.length - HISTORY);
 }
 
+const isRoom = (id: string) => id.startsWith('chat-room-');
+
+/**
+ * When a room's send leaves: when the message that caused it lands at the room (the post or broadcast
+ * with the same text for a Deliver, the poster's post for a reply), else now.
+ */
+function departure(state: FlowState, flow: Flow, now: number): number {
+  if (!isRoom(flow.sender) || (flow.kind !== 'deliver' && flow.kind !== 'reply')) return now;
+  let at = now;
+  for (const d of state.dots) {
+    if (d.receiver !== flow.sender) continue;
+    const cause = flow.kind === 'deliver' ? d.text === flow.text : d.sender === flow.receiver;
+    if (cause) at = Math.max(at, d.start + d.duration);
+  }
+  return at;
+}
+
 /** Adds one message: a dot on its way, an entry in both actors' history, and the sender's process. */
 export function addFlow(state: FlowState, flow: Flow, now: number) {
   const busy = state.dots.length >= BUSY_DOTS;
-  state.dots.push({ ...flow, start: now, duration: flow.manual ? MANUAL_MS : busy ? BUSY_MS : FLOW_MS });
-  remember(state, flow.sender, flow);
+  state.dots.push({ ...flow, start: departure(state, flow, now), duration: flow.manual ? MANUAL_MS : busy ? BUSY_MS : FLOW_MS });
+  if (isRoom(flow.sender)) {
+    const sent = state.sentAt.get(flow.sender) ?? [];
+    sent.push(flow.at);
+    if (sent.length > HISTORY * 20) sent.splice(0, sent.length - HISTORY * 20);
+    state.sentAt.set(flow.sender, sent);
+  } else {
+    remember(state, flow.sender, flow);
+  }
   if (flow.receiver !== flow.sender) remember(state, flow.receiver, flow);
   if (flow.node !== null) state.nodeOf.set(flow.sender, flow.node);
 }
 
-/** Drops the dots that arrived; returns whether any is still in flight. */
+/** Drops the dots that arrived; returns whether any is still in flight or waiting to leave. */
 export function pruneDots(state: FlowState, now: number): boolean {
   if (state.dots.some((d) => now - d.start >= d.duration)) {
     state.dots = state.dots.filter((d) => now - d.start < d.duration);
@@ -123,7 +152,7 @@ export const historyOf = (state: FlowState, id: string): readonly Flow[] => stat
 
 /** Sent and received counts of the actor's messages in the last `windowMs`. */
 export function countsOf(state: FlowState, id: string, now: number, windowMs = 60_000) {
-  let sent = 0;
+  let sent = (state.sentAt.get(id) ?? []).filter((at) => now - at <= windowMs).length;
   let received = 0;
   for (const f of historyOf(state, id)) {
     if (now - f.at > windowMs) continue;

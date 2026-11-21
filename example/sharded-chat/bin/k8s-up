@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# The chat on a local Kubernetes cluster: builds both images, applies k8s/ (kubectl apply -k), deploys
+# and activates blue with k8s/blue-green.sh, and forwards the control app to http://localhost:8090.
+# The cluster: CONTEXT if set; else Docker Desktop's Kubernetes when it runs (it uses Docker's images);
+# else a kind cluster, made here, that the images are loaded into. Needs Docker, kubectl and jq (and kind
+# without Docker Desktop's Kubernetes). Run it again to roll out new images. Stop with bin/k8s-down.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+root="$(cd ../.. && pwd)"
+CLUSTER=${CLUSTER:-sharded-chat}
+NS=sharded-chat
+PORT=${PORT:-8090}
+if [ -z "${CONTEXT:-}" ]; then
+    if kubectl --context docker-desktop get nodes > /dev/null 2>&1; then
+        CONTEXT=docker-desktop
+    else
+        kind get clusters 2>/dev/null | grep -qx "$CLUSTER" || kind create cluster --name "$CLUSTER"
+        CONTEXT="kind-$CLUSTER"
+    fi
+fi
+export CONTEXT
+k() { kubectl --context "$CONTEXT" -n "$NS" "$@"; }
+echo "cluster: $CONTEXT"
+
+"$root/gradlew" -p "$root" :example:sharded-chat:bootJar :example:sharded-chat:control:bootJar -q > /dev/null
+node_jar="$(ls build/libs/sharded-chat-*.jar | grep -v plain | head -1)"
+control_jar="$(ls control/build/libs/control-*.jar | grep -v plain | head -1)"
+docker build -q -t sharded-chat-node:dev -f k8s/Dockerfile --build-arg JAR="$node_jar" . > /dev/null
+docker build -q -t sharded-chat-control:dev -f k8s/Dockerfile --build-arg JAR="$control_jar" . > /dev/null
+case "$CONTEXT" in
+    kind-*) kind load docker-image sharded-chat-node:dev sharded-chat-control:dev --name "${CONTEXT#kind-}" > /dev/null ;;
+esac
+
+# Secrets are made here, once, and never written to the repository.
+kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl --context "$CONTEXT" apply -f - > /dev/null
+k get secret chat-secrets > /dev/null 2>&1 || k create secret generic chat-secrets \
+    --from-literal=db-password="$(openssl rand -hex 16)" \
+    --from-literal=deployer-password="$(openssl rand -hex 16)" > /dev/null
+
+# The starter's PostgreSQL schema, applied once by the chat-schema Job (k8s/schema.yaml).
+k create configmap chat-schema \
+    --from-file=schema.sql="$root/actor-jdbc/src/main/resources/io/github/seonwkim/actor/jdbc/schema-postgresql.sql" \
+    --dry-run=client -o yaml | kubectl --context "$CONTEXT" apply -f - > /dev/null
+# A finished Job cannot be changed: run it again from scratch (the schema is idempotent).
+k delete job chat-schema --ignore-not-found > /dev/null
+# A new StatefulSet is created with 0 pods; after that its replicas are blue-green.sh's and kubectl
+# scale's (the manifests leave them out, so applying them again keeps the running scale).
+for color in blue green; do
+    k get statefulset "chat-$color" > /dev/null 2>&1 || kubectl kustomize k8s \
+        | kubectl --context "$CONTEXT" create --dry-run=client -o json -f - \
+        | jq --arg name "chat-$color" '(.items // [.])[] | select(.kind == "StatefulSet" and .metadata.name == $name) | .spec.replicas = 0' \
+        | kubectl --context "$CONTEXT" create -f - > /dev/null
+done
+kubectl --context "$CONTEXT" apply -k k8s > /dev/null
+k wait --for=condition=complete job/chat-schema --timeout=180s > /dev/null
+# The same tag again: restart what runs so it picks up the new images.
+k rollout restart deployment/control > /dev/null
+for color in blue green; do
+    [ "$(k get statefulset "chat-$color" -o jsonpath='{.spec.replicas}')" = 0 ] || k rollout restart statefulset "chat-$color" > /dev/null
+done
+
+if [ -z "$(k get pods -l app=sharded-chat -o name)" ]; then
+    k8s/blue-green.sh deploy blue v1
+    k8s/blue-green.sh activate blue
+fi
+k rollout status deployment/control --timeout=180s > /dev/null
+
+mkdir -p build
+if [ -f build/k8s-port-forward.pid ]; then
+    pkill -P "$(cat build/k8s-port-forward.pid)" 2>/dev/null || true
+    kill "$(cat build/k8s-port-forward.pid)" 2>/dev/null || true
+fi
+# kubectl port-forward exits when a forwarded stream breaks (the page's event stream can): start it again.
+(while :; do k port-forward svc/control "$PORT:8080"; sleep 1; done) > /dev/null 2>&1 &
+echo $! > build/k8s-port-forward.pid
+echo "control: http://localhost:$PORT ($CONTEXT, namespace $NS; CONTEXT=$CONTEXT k8s/blue-green.sh status)"

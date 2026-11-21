@@ -15,8 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 /** {@code GET /api/cluster/nodes}: the cluster's nodes as this node sees them, with the chat actors on each. */
 @RestController
 public class ClusterController {
-    /** One node: its number, remote port, membership status and how many rooms and users run on it. */
-    public record Node(int node, int port, String status, int actors) {}
+    /**
+     * One node: its number, host and remote port, release, membership status and how many rooms and users
+     * run on it. The host is how the other nodes reach it (on Kubernetes, the pod's DNS name).
+     */
+    public record Node(int node, String host, int port, String version, String status, int actors) {}
 
     public record Nodes(List<Node> nodes) {}
 
@@ -33,7 +36,8 @@ public class ClusterController {
         CompletionStage<Map<Integer, Integer>> counts =
                 chat.state().thenApply(ClusterController::actorsPerNode).exceptionally(e -> Map.of());
         return counts.thenApply(perNode -> new Nodes(members.members().stream()
-                .map(m -> new Node(m.node(), m.port(), m.status(), perNode.getOrDefault(m.node(), 0)))
+                .map(m -> new Node(
+                        m.node(), m.host(), m.port(), m.version(), m.status(), perNode.getOrDefault(m.node(), 0)))
                 .toList()));
     }
 

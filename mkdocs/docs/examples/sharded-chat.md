@@ -8,7 +8,7 @@ blue-green deployment from the page and roll it back.
 ![Sharded chat](../chat.gif)
 
 - **Source:** [`example/sharded-chat`](https://github.com/seonWKim/actor-spring-boot-starter/tree/main/example/sharded-chat)
-- **Runs:** a control app and two colors of three nodes each on one machine, a React page served by the control app
+- **Runs:** a control app and two colors of three nodes each on one machine, or on Kubernetes (`k8s/`), with a React page served by the control app
 - **Modules:** `actor-spring-boot-starter-cluster`, `actor-jdbc`, Spring WebFlux, Spring Boot Actuator
 
 ## What it shows
@@ -37,6 +37,10 @@ bin/stop 2                # stop node 2: its rooms and users move to blue's othe
 bin/start-node 2          # bring it back
 bin/stop                  # stop all
 ```
+
+On Kubernetes, `bin/k8s-up` deploys the same apps from `k8s/` (a StatefulSet per color, PostgreSQL for
+the generation record) and serves the page on http://localhost:8090; `k8s/blue-green.sh` runs the
+pipeline with kubectl.
 
 Open http://localhost:8080. The ☰ menu runs the blue-green steps too. Click a room or a user to see its shard (`crc32(id) % 100`), its node and why
 it runs there. The example's

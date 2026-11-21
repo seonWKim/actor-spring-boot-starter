@@ -1,0 +1,31 @@
+# The starter's tables (actor_peer, actor_lease, actor_generation), created once before the nodes start,
+# not by each node: several pods creating them at the same time fail on PostgreSQL (issue #277). The SQL
+# is the starter's own schema-postgresql.sql, which bin/k8s-up puts in the chat-schema ConfigMap.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: chat-schema
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels: { app: chat-schema }
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      containers:
+        - name: schema
+          image: postgres:16-alpine
+          command: ["sh", "-c", "until pg_isready -h postgres -U chat; do sleep 1; done; psql -v ON_ERROR_STOP=1 -h postgres -U chat -d chat -f /schema/schema.sql"]
+          env:
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: chat-secrets, key: db-password } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: schema, mountPath: /schema, readOnly: true }
+      volumes:
+        - name: schema
+          configMap: { name: chat-schema }
