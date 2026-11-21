@@ -15,7 +15,7 @@ This is the target architecture for 1.0, agreed on 2026-11-08 and tracked in #96
 | # | Decision | Why |
 |---|---|---|
 | 1 | The public API (`actor-api`) is a separate module with **no Pekko dependency** | A Pekko type in the public API becomes a compile error, not just a failing test |
-| 2 | Artifacts are named `actor-*`, and the starters `actor-spring-boot-starter*` | Spring Boot reserves `spring-boot-*` for its own starters. The old coordinates get relocation POMs for one release |
+| 2 | Artifacts are named `actor-*`, and the starters `actor-spring-boot-starter*` | Spring Boot reserves `spring-boot-*` for its own starters. The old coordinates had relocation POMs in 1.0 and 1.1 |
 | 3 | 1.0 requires **Java 21+ and Spring Boot 3+** | Removes the Boot 2 source copy, makes virtual threads always available, and gives Observation-based tracing |
 | 4 | HTTP, gRPC and Connectors are **bridged, not wrapped** | One HTTP stack, and it's Spring's |
 

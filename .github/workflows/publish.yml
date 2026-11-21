@@ -56,8 +56,8 @@ jobs:
           java-version: 21
           cache: gradle
 
-      # Publishes every library module (artifactId.<module> in gradle.properties), the actor-bom
-      # BOM and the relocation POMs under relocation/ as one Maven Central deployment.
+      # Publishes every library module (artifactId.<module> in gradle.properties) and the actor-bom
+      # BOM as one Maven Central deployment.
       - name: 🚀 Publish to Maven Central (all modules)
         run: |
           ./gradlew build
