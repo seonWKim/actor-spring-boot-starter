@@ -117,7 +117,8 @@ class ActorPropertiesTest {
         properties.setProvider(ActorProperties.Provider.CLUSTER);
 
         assertThat(properties.toPekkoConfig(Map.of(), false))
-                .isEqualTo(Map.of("pekko", Map.of("actor", Map.of("provider", "cluster"))));
+                .extractingByKey("pekko", org.assertj.core.api.InstanceOfAssertFactories.MAP)
+                .containsEntry("actor", Map.of("provider", "cluster"));
     }
 
     @Test
@@ -290,6 +291,25 @@ class ActorPropertiesTest {
     }
 
     @Test
+    void seedNodeClustersDownUnreachableNodesWithKeepMajorityByDefault() {
+        ActorProperties properties = new ActorProperties();
+        properties.setProvider(ActorProperties.Provider.CLUSTER);
+        properties.getCluster().setSeedNodes(java.util.List.of("pekko://orders@10.0.0.7:25521"));
+
+        assertThat(properties.toPekkoConfig(Map.of(), false))
+                .extractingByKey("pekko", org.assertj.core.api.InstanceOfAssertFactories.MAP)
+                .containsEntry(
+                        "cluster",
+                        Map.of(
+                                "seed-nodes",
+                                java.util.List.of("pekko://orders@10.0.0.7:25521"),
+                                "downing-provider-class",
+                                "org.apache.pekko.cluster.sbr.SplitBrainResolverProvider",
+                                "split-brain-resolver",
+                                Map.of("active-strategy", "keep-majority")));
+    }
+
+    @Test
     void leaseMajorityAndUseLeasePointPekkoAtTheLeaseStoreWithItsTimings() {
         runner.withPropertyValues(
                         "spring.actor.cluster.downing.strategy=lease-majority",
@@ -335,15 +355,14 @@ class ActorPropertiesTest {
     }
 
     @Test
-    void aClusterWithoutDowningIsWarnedAbout(CapturedOutput output) {
+    void aClusterWithDowningTurnedOffIsWarnedAbout(CapturedOutput output) {
         ActorProperties properties = new ActorProperties();
         properties.setProvider(ActorProperties.Provider.CLUSTER);
         properties.toPekkoConfig(Map.of(), false);
-        assertThat(output).contains("This cluster has no downing");
+        assertThat(output).doesNotContain("This cluster has no downing");
 
-        properties.getCluster().getDowning().setStrategy(ActorProperties.Downing.Strategy.KEEP_OLDEST);
-        int warnings = output.toString().split("This cluster has no downing", -1).length;
+        properties.getCluster().getDowning().setStrategy(ActorProperties.Downing.Strategy.NONE);
         properties.toPekkoConfig(Map.of(), false);
-        assertThat(output.toString().split("This cluster has no downing", -1)).hasSize(warnings);
+        assertThat(output).contains("This cluster has no downing");
     }
 }

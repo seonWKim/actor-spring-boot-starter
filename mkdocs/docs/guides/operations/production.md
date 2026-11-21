@@ -198,8 +198,7 @@ Go through this list before the first release of a clustered application.
 - [ ] Every node uses the same `spring.actor.name`.
 - [ ] Nodes find each other through `seed-nodes` or `join: discovery`, not `join-self`
       ([Cluster Formation](../cluster/cluster-formation.md)).
-- [ ] A downing strategy is set. With `join: discovery` the default is `keep-majority`; with seed nodes the
-      default is `none` and the starter logs a warning
+- [ ] The downing strategy fits the cluster. The default is `keep-majority`; `none` logs a warning
       ([Split Brain and Leases](../cluster/split-brain-and-leases.md)).
 - [ ] If a singleton or a shard must never run on two nodes at once, it uses a lease
       (`singleton.use-lease`, `sharding.use-lease`).

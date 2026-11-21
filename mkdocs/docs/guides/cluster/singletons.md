@@ -419,8 +419,8 @@ its events. Its singleton is named `projection-<name>`.
   sharded entities or routers.
 - **Blocking calls.** A singleton that calls a database or an HTTP service should run on the blocking
   dispatcher (`withBlockingDispatcher()`), like any blocking actor.
-- **No downing strategy.** Without one, a crashed host keeps the singleton until someone removes the node.
-  The starter logs a warning at startup when no downing strategy is set.
+- **Downing turned off.** With `downing.strategy: none`, a crashed host keeps the singleton until someone
+  removes the node. The starter logs a warning at startup.
 - **Different ids on different nodes.** Nodes that spawn with another id start another singleton.
 - **State in memory.** It is gone when the singleton moves. Store what must survive.
 
