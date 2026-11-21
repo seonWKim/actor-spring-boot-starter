@@ -636,7 +636,8 @@ public class ActorProperties {
 
         /**
          * The split brain resolver strategy: keep-majority, lease-majority, static-quorum,
-         * keep-oldest, down-all or none. Default keep-majority with join=discovery, none otherwise.
+         * keep-oldest, down-all or none. Default keep-majority: without downing, a crashed node stays an
+         * unreachable member, and its shards and singletons wait until someone removes it.
          */
         @Nullable private Strategy strategy;
 
@@ -970,8 +971,8 @@ public class ActorProperties {
         if ("cluster".equals(String.valueOf(lookup(config, "pekko.actor.provider")))
                 && lookup(config, "pekko.cluster.downing-provider-class") == null) {
             log.warn("This cluster has no downing: after a network split or a crash, unreachable nodes stay members"
-                    + " and both sides of a split keep running. Set spring.actor.cluster.downing.strategy"
-                    + " (keep-majority, lease-majority, static-quorum, keep-oldest or down-all)");
+                    + " and both sides of a split keep running. Remove spring.actor.cluster.downing.strategy=none"
+                    + " for the default keep-majority, or set lease-majority, static-quorum, keep-oldest or down-all");
         }
         return config;
     }
@@ -1094,13 +1095,14 @@ public class ActorProperties {
 
     private static final String SPLIT_BRAIN_RESOLVER = "org.apache.pekko.cluster.sbr.SplitBrainResolverProvider";
 
-    /** The downing strategy in effect: the set one, or keep-majority with discovery, or none. */
+    /** The downing strategy in effect: the set one, else keep-majority in a cluster, else none. */
     Downing.Strategy downingStrategy() {
         Downing.Strategy strategy = cluster.downing.strategy;
         if (strategy != null) {
             return strategy;
         }
-        return cluster.join == Cluster.Join.DISCOVERY ? Downing.Strategy.KEEP_MAJORITY : Downing.Strategy.NONE;
+        boolean cluster = provider == Provider.CLUSTER || this.cluster.join == Cluster.Join.DISCOVERY;
+        return cluster ? Downing.Strategy.KEEP_MAJORITY : Downing.Strategy.NONE;
     }
 
     private List<TypedKey> downingAndLeaseKeys() {

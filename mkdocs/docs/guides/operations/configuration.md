@@ -76,7 +76,7 @@ Used with `join: discovery`.
 
 | Key | Default | Sets Pekko key | Description |
 |---|---|---|---|
-| `spring.actor.cluster.downing.strategy` | `keep-majority` with `join: discovery`, else `none` | `pekko.cluster.downing-provider-class`, `pekko.cluster.split-brain-resolver.active-strategy` | Which side of a network split stays up: `keep-majority`, `lease-majority`, `static-quorum`, `keep-oldest`, `down-all` or `none`. A cluster without downing logs a warning. |
+| `spring.actor.cluster.downing.strategy` | `keep-majority` | `pekko.cluster.downing-provider-class`, `pekko.cluster.split-brain-resolver.active-strategy` | Which side of a network split stays up: `keep-majority`, `lease-majority`, `static-quorum`, `keep-oldest`, `down-all` or `none`. `none` logs a warning. |
 | `spring.actor.cluster.downing.quorum-size` | none | `pekko.cluster.split-brain-resolver.static-quorum.quorum-size` | Nodes a side needs to stay up. Required with `static-quorum`; at least `1`. Set it above half the cluster's size. |
 
 ### Leases
