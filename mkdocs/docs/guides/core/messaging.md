@@ -21,6 +21,10 @@ other without ask, and how to design messages. Defining and spawning actors is i
 - **Serializable in a cluster.** A message that can cross nodes must implement `JsonSerializable` or
   `CborSerializable` (package `io.github.seonwkim.actor.serialization`). In local mode messages are
   passed as objects and need neither. See [Cluster formation](../cluster/cluster-formation.md).
+  The starter writes them with its own Jackson mapper, not the application's `ObjectMapper`, so settings
+  made for the REST API do not change what nodes exchange. To use the application's, set
+  `spring.actor.serialization.application-object-mapper: true`, and treat its settings as part of the
+  message format.
 
 ## Tell
 

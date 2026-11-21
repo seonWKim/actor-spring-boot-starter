@@ -33,6 +33,7 @@ import org.apache.pekko.cluster.typed.SingletonActor;
 import org.apache.pekko.cluster.typed.Subscribe;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.env.Environment;
 import org.springframework.util.ClassUtils;
 
 /** {@link ClusterSupport} on Pekko Cluster, Cluster Sharding and Cluster Singleton. */
@@ -77,13 +78,26 @@ public final class PekkoClusterSupport implements ClusterSupport {
 
     @Override
     public ActorSystemSetup withSetup(ActorSystemSetup setup, @Nullable BeanFactory beans) {
-        ObjectMapper applicationMapper =
-                beans == null ? null : beans.getBeanProvider(ObjectMapper.class).getIfUnique();
+        ObjectMapper applicationMapper = beans != null && usesApplicationMapper(beans)
+                ? beans.getBeanProvider(ObjectMapper.class).getIfUnique()
+                : null;
         ShardedActorRegistry sharded = beans == null
                 ? null
                 : beans.getBeanProvider(ShardedActorRegistry.class).getIfAvailable();
         return setup.withSetup(PekkoJackson.setup(applicationMapper))
                 .withSetup(new ShardedActorsSetup(sharded == null ? new ShardedActorRegistry() : sharded));
+    }
+
+    /** Set by spring.actor.serialization.application-object-mapper (ActorProperties). */
+    static final String APPLICATION_MAPPER_KEY = "spring.actor.serialization.application-object-mapper";
+
+    /**
+     * Whether JSON messages use the application's ObjectMapper: only when asked, so the wire and journal
+     * format does not follow settings made for the REST API.
+     */
+    private static boolean usesApplicationMapper(BeanFactory beans) {
+        Environment environment = beans.getBeanProvider(Environment.class).getIfAvailable();
+        return environment != null && environment.getProperty(APPLICATION_MAPPER_KEY, Boolean.class, Boolean.FALSE);
     }
 
     /** Carries the Spring context's sharded actors to the cluster runtime of its actor system. */

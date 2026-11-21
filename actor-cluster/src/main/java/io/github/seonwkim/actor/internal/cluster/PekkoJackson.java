@@ -49,8 +49,9 @@ final class PekkoJackson {
     }
 
     /**
-     * The JSON binding starts from a copy of {@code applicationMapper} when there is one, so messages
-     * use the application's modules and settings; Pekko then applies its configured features on top.
+     * The JSON binding starts from a copy of {@code applicationMapper} when it is given
+     * (spring.actor.serialization.application-object-mapper), so messages use the application's modules and
+     * settings; otherwise from Pekko's own mapper. Pekko then applies its configured features on top.
      * CBOR needs a CBOR factory, so it keeps Pekko's own mapper. Both get the module that writes
      * {@code SpringActorRef}s.
      */

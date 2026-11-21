@@ -153,7 +153,8 @@ others later; it is not rolled back.
 
 Keys, values and set elements travel between nodes, so they must be serializable: `String`, `Integer`,
 `Long`, or a type that implements `JsonSerializable` or `CborSerializable`, the same as actor messages.
-Values that implement `JsonSerializable` use your application's `ObjectMapper`.
+Values that implement `JsonSerializable` use the starter's Jackson mapper, or your application's `ObjectMapper`
+with `spring.actor.serialization.application-object-mapper: true`.
 
 === "Java"
 

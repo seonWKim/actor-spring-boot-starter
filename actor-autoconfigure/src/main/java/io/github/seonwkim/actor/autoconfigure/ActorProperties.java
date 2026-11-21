@@ -76,6 +76,8 @@ public class ActorProperties {
 
     private final Validation validation = new Validation();
 
+    private final Serialization serialization = new Serialization();
+
     /**
      * Dispatchers that run on Spring Executor beans, by dispatcher name. An actor uses one with
      * withDispatcherFromConfig("<name>").
@@ -141,6 +143,30 @@ public class ActorProperties {
 
     public Validation getValidation() {
         return validation;
+    }
+
+    public Serialization getSerialization() {
+        return serialization;
+    }
+
+    /** How messages between nodes, and persisted events and snapshots, are written (cluster provider). */
+    public static class Serialization {
+
+        /**
+         * Write JsonSerializable messages, events and snapshots with a copy of the application's
+         * ObjectMapper bean instead of the starter's own. Off by default: a setting changed for the REST
+         * API (a naming strategy, a date format, a Spring Boot upgrade) would also change the format nodes
+         * exchange and the journal stores, so old and new nodes, or old events, could no longer be read.
+         */
+        private boolean applicationObjectMapper;
+
+        public boolean isApplicationObjectMapper() {
+            return applicationObjectMapper;
+        }
+
+        public void setApplicationObjectMapper(boolean applicationObjectMapper) {
+            this.applicationObjectMapper = applicationObjectMapper;
+        }
     }
 
     public Map<String, Dispatcher> getDispatchers() {
@@ -936,7 +962,8 @@ public class ActorProperties {
             "metrics",
             "delivery",
             "generation",
-            "validation");
+            "validation",
+            "serialization");
 
     /**
      * The Pekko configuration. Every key under {@code spring.actor} except the typed settings is
