@@ -203,5 +203,4 @@ Using several? Import `actor-bom` to set the version once (see [Getting started]
 
 - [Getting started](getting-started.md): an actor answering HTTP requests in a few minutes
 - [Examples](examples/index.md): runnable applications, from a single node to Kubernetes
-- [Migrating from 0.x](migrating-from-0x.md): if you used `spring-boot-starter-actor`
 - [llms.txt](llms.txt): the index of these docs for AI assistants
