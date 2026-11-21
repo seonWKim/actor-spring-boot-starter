@@ -461,6 +461,16 @@ public class ActorProperties {
         /** Port this node listens on for other nodes; 0 picks a free port (pekko.remote.artery.canonical.port). */
         @Nullable private Integer port;
 
+        /**
+         * Address to listen on when hostname is not one of this host's addresses: a DNS name that may not
+         * resolve yet at startup, NAT, or a load balancer. Usually 0.0.0.0. Default: hostname
+         * (pekko.remote.artery.bind.hostname).
+         */
+        @Nullable private String bindHostname;
+
+        /** Port to listen on when it differs from port, behind NAT or port mapping. Default: port (pekko.remote.artery.bind.port). */
+        @Nullable private Integer bindPort;
+
         @Nullable public String getHostname() {
             return hostname;
         }
@@ -478,6 +488,26 @@ public class ActorProperties {
                 throw new IllegalArgumentException("spring.actor.remote.port must be between 0 and 65535, got " + port);
             }
             this.port = port;
+        }
+
+        @Nullable public String getBindHostname() {
+            return bindHostname;
+        }
+
+        public void setBindHostname(@Nullable String bindHostname) {
+            this.bindHostname = bindHostname;
+        }
+
+        @Nullable public Integer getBindPort() {
+            return bindPort;
+        }
+
+        public void setBindPort(@Nullable Integer bindPort) {
+            if (bindPort != null && (bindPort < 0 || bindPort > 65535)) {
+                throw new IllegalArgumentException(
+                        "spring.actor.remote.bind-port must be between 0 and 65535, got " + bindPort);
+            }
+            this.bindPort = bindPort;
         }
     }
 
@@ -987,6 +1017,12 @@ public class ActorProperties {
         }
         if (remote.port != null) {
             keys.add(new TypedKey("remote.port", "pekko.remote.artery.canonical.port", remote.port));
+        }
+        if (remote.bindHostname != null) {
+            keys.add(new TypedKey("remote.bind-hostname", "pekko.remote.artery.bind.hostname", remote.bindHostname));
+        }
+        if (remote.bindPort != null) {
+            keys.add(new TypedKey("remote.bind-port", "pekko.remote.artery.bind.port", remote.bindPort));
         }
         if (!cluster.seedNodes.isEmpty()) {
             keys.add(new TypedKey("cluster.seed-nodes", "pekko.cluster.seed-nodes", cluster.seedNodes));
