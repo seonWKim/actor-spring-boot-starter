@@ -201,7 +201,8 @@ Go through this list before the first release of a clustered application.
 - [ ] The downing strategy fits the cluster. The default is `keep-majority`; `none` logs a warning
       ([Split Brain and Leases](../cluster/split-brain-and-leases.md)).
 - [ ] If a singleton or a shard must never run on two nodes at once, it uses a lease
-      (`singleton.use-lease`, `sharding.use-lease`).
+      (`singleton.use-lease`, `sharding.use-lease`), and the lease store stays up: an outage longer than
+      110 s stops them ([When the lease store is down](../cluster/split-brain-and-leases.md#when-the-lease-store-is-down)).
 - [ ] The network lets pods reach each other on the remoting port (`25520` by default) and the Pekko
       Management port. The [Kubernetes example](../../examples/kubernetes.md) lists the rules to ask for.
 - [ ] With `jdbc` or `redis` discovery or leases, only the nodes can write the store: a dedicated Redis
