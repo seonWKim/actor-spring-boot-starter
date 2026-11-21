@@ -65,6 +65,8 @@ dependencies {
     testRuntimeOnly("org.postgresql:postgresql")
     // spring.actor.cluster.join=discovery checks that Cluster Bootstrap is present.
     testRuntimeOnly("org.apache.pekko:pekko-management-cluster-bootstrap_3:${pekkoManagementVersion}")
+    // PekkoKeysTest checks the typed settings' keys against the reference config of the cluster modules.
+    testRuntimeOnly(project(":actor-cluster"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
