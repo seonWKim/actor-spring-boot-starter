@@ -127,6 +127,7 @@ class SpringTopicClusterTest extends AbstractClusterTest {
 
         SpringActorSystem system1 = context1.getBean(SpringActorSystem.class);
         SpringActorSystem system2 = context2.getBean(SpringActorSystem.class);
+        SpringActorSystem system3 = context3.getBean(SpringActorSystem.class);
 
         // Create topic
         SpringTopicRef<ClusterMessage> topic1 = manager1.topic(
@@ -161,6 +162,11 @@ class SpringTopicClusterTest extends AbstractClusterTest {
         TopicStats.awaitInstances(
                 topic2,
                 io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system2).scheduler(),
+                2);
+        // Node 3 publishes too, so it must know both subscribers' instances before it does.
+        TopicStats.awaitInstances(
+                topic3,
+                io.github.seonwkim.actor.internal.PekkoActorSystem.raw(system3).scheduler(),
                 2);
 
         // Publish from different nodes
