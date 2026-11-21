@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- **No more relocation POMs for the 0.x coordinates (#282).** `spring-boot-starter-actor`,
+  `spring-boot-starter-actor_3` and `spring-boot-starter-actor-metrics` pointed to the 1.0 artifacts in 1.0.0 and
+  1.1.0 and are no longer published. Use `actor-spring-boot-starter` and `actor-metrics` (the 1.0.0 entry has the
+  full mapping).
+
 ### Features
 
 - **`askToSelf` and a ready singleton handle (#267).** `ctx.askToSelf(target, command, timeout, (reply, error) ->
