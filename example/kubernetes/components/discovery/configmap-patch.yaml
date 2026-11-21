@@ -9,6 +9,10 @@ data:
     spring:
       application:
         name: spring-actor-app
+      # The web server's drain, before the actor system shuts down: preStop 10s + 10s + shutdown 25s
+      # fits the Deployment's 45s grace period. Spring Boot's default is 30s.
+      lifecycle:
+        timeout-per-shutdown-phase: 10s
       actor:
         name: spring-actor-system
         provider: cluster

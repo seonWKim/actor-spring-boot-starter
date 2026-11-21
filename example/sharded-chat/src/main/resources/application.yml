@@ -4,6 +4,10 @@
 spring:
   application:
     name: sharded-chat
+  # The web drain before the actor system shuts down (20s, spring.actor.shutdown.timeout): with the
+  # pod's 5s preStop that is 35s, inside its 45s grace period (k8s/chat-*.yaml). Spring Boot's default is 30s.
+  lifecycle:
+    timeout-per-shutdown-phase: 10s
   actor:
     name: sharded-chat
     provider: cluster
