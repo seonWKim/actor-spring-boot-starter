@@ -1,22 +1,16 @@
 package io.github.seonwkim.example.kubernetes;
 
 import static io.github.seonwkim.example.kubernetes.Kustomize.get;
+import static io.github.seonwkim.example.kubernetes.Kustomize.jq;
 import static io.github.seonwkim.example.kubernetes.Kustomize.render;
 import static io.github.seonwkim.example.kubernetes.Kustomize.resource;
-import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.yaml.snakeyaml.Yaml;
 
 /**
  * The pods that {@code scripts/blue-green.sh} and {@code scripts/canary.sh} start are covered by the
@@ -231,50 +225,5 @@ class RolloutNetworkPoliciesTest {
                 .isNull();
         return matchLabels == null
                 || matchLabels.entrySet().stream().allMatch(e -> e.getValue().equals(labels.get(e.getKey())));
-    }
-
-    /** Runs {@code scripts/<filter>} on {@code input}; skips the test when jq is not installed. */
-    private static Object jq(String filter, Object input, String... args) throws IOException, InterruptedException {
-        List<String> command = new ArrayList<>(List.of("jq", "-c"));
-        command.addAll(List.of(args));
-        command.addAll(List.of("-f", "scripts/" + filter));
-        Process process;
-        try {
-            process = new ProcessBuilder(command)
-                    .directory(new File(System.getProperty("user.dir")))
-                    .redirectError(ProcessBuilder.Redirect.INHERIT)
-                    .start();
-        } catch (IOException e) {
-            assumeTrue(false, "jq is not installed");
-            throw e;
-        }
-        try (var stdin = process.getOutputStream()) {
-            stdin.write(json(input).getBytes(StandardCharsets.UTF_8));
-        }
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        assertThat(process.waitFor(60, TimeUnit.SECONDS)).isTrue();
-        assertThat(process.exitValue()).as("jq -f scripts/" + filter).isZero();
-        return new Yaml().load(output); // JSON is YAML
-    }
-
-    private static String json(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return map.entrySet().stream()
-                    .map(e -> json(String.valueOf(e.getKey())) + ":" + json(e.getValue()))
-                    .collect(joining(",", "{", "}"));
-        }
-        if (value instanceof List<?> list) {
-            return list.stream().map(RolloutNetworkPoliciesTest::json).collect(joining(",", "[", "]"));
-        }
-        if (value instanceof String string) {
-            StringBuilder quoted = new StringBuilder("\"");
-            string.chars()
-                    .forEach(c -> quoted.append(
-                            c == '"' || c == '\\'
-                                    ? "\\" + (char) c
-                                    : c < 0x20 ? String.format("\\u%04x", c) : (char) c));
-            return quoted.append('"').toString();
-        }
-        return String.valueOf(value); // numbers, booleans, null
     }
 }

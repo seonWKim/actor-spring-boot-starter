@@ -1,0 +1,12 @@
+# At most one pod at a time leaves through a voluntary disruption (a node drain, a cluster upgrade).
+# Each pod that leaves hands its shards and singletons over to the others; several at once move them
+# together and, with keep-majority, can shrink the cluster below a majority.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: spring-actor
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: spring-actor

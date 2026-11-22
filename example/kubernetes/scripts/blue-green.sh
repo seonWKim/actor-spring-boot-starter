@@ -22,7 +22,8 @@
 # waits for readiness, because here the Service selector, not readiness, switches the colors.
 # Green forms its own cluster (its discovery looks for app=spring-actor-green), so the versions
 # never exchange messages. Green gets a copy of each blue NetworkPolicy that selects
-# app=spring-actor-green instead, so remoting and management open only between pods of one color.
+# app=spring-actor-green instead, so remoting and management open only between pods of one color,
+# and a copy of each blue PodDisruptionBudget.
 # In-memory entity state stays in blue: green starts empty.
 set -euo pipefail
 
@@ -143,6 +144,12 @@ deploy)
         | jq --arg blue "$BLUE" --arg green "$GREEN" -f "$DIR/blue-green-policies.jq")
     if [ "$(jq '.items | length' <<< "$policies")" -gt 0 ]; then
         kubectl apply -f - <<< "$policies"
+    fi
+    # Green's disruption budgets, so a node drain takes one green pod at a time as it does for blue.
+    budgets=$(kubectl -n "$NS" get pdb -o json \
+        | jq --arg blue "$BLUE" --arg green "$GREEN" -f "$DIR/blue-green-pdb.jq")
+    if [ "$(jq '.items | length' <<< "$budgets")" -gt 0 ]; then
+        kubectl apply -f - <<< "$budgets"
     fi
     kubectl -n "$NS" get deploy "$BLUE" -o json \
         | jq --arg name "$GREEN" --arg image "$IMAGE" -f "$DIR/blue-green-deployment.jq" \
