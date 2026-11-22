@@ -149,7 +149,10 @@ pipeline changes it only through a compare-and-set:
   expected epoch returns the generation it activated the first time (`ALREADY_ACTIVATED`, HTTP 200), even
   after the epoch has moved on. The same operation ID with another color or epoch is `OPERATION_CONFLICT`
   (409). A pipeline keeps the expected epoch and the operation ID it used, and sends both again when it
-  retries.
+  retries. Make the operation ID one run of the pipeline, not the git tag: `<tag>@<commit>#<ci-run-id>`,
+  such as `v1.4.0@d4e5f6a#8812`. A retry within the run reuses it, and a later run of the same tag (a
+  re-release, or a rollback to it after its slot was retired) gets a new one. A bare tag can be activated
+  only once: the second time it is `OPERATION_CONFLICT`.
 - **Old work stays fenced.** Blue, then green, then blue again gives epochs 1, 2 and 3. Work that blue stamped
   in its first turn carries epoch 1 and is refused in its second (epoch 3), because the epoch never goes back.
 
@@ -187,15 +190,18 @@ curl -u deployer:$PASSWORD -X POST localhost:8080/actuator/generation \
 **Verifying a switch.** A node reuses its read of the record for `spring.actor.generation.refresh`, so
 after an activation each node keeps stamping and checking with the old epoch for up to that long. `node`
 says what this node reads now: the generation (`active`), when it read it from the store (`readAt`),
-whether its own color is the active one (`colorActive`) and whether it is warmed up (`warm`, from the
-`actorWarmup` health indicator; `null` outside cluster mode). Reading the endpoint does not refresh the
-node's read. A pipeline knows the switch is done when every node of both colors reports the new epoch:
+whether its own color is the active one (`colorActive`), whether it is warmed up (`warm`, from the
+`actorWarmup` health indicator; `null` outside cluster mode) and the build it runs (`build`, *new in the
+next release*: `version` from Spring Boot's build info, `springBoot { buildInfo() }`, and `commit` from
+`git.properties`, for example through the `com.gorylenko.gradle-git-properties` plugin; `null` without
+either). Reading the endpoint does not refresh the node's read. A pipeline knows the switch is done when every node of both colors reports the new epoch:
 
 ```bash
 curl -s localhost:8081/actuator/generation
 # {"deployment":"orders","color":"blue",
 #  "active":{"color":"green","epoch":2,...},
-#  "node":{"active":{"color":"blue","epoch":1,...},"readAt":"2026-11-11T10:00:00.250Z","colorActive":true,"warm":true}}
+#  "node":{"active":{"color":"blue","epoch":1,...},"readAt":"2026-11-11T10:00:00.250Z","colorActive":true,"warm":true,
+#          "build":{"version":"1.4.0","commit":"d4e5f6a"}}}
 
 # Every pod reads the record's epoch
 for pod in $PODS; do
@@ -204,7 +210,8 @@ done
 ```
 
 `blue-green.sh verify` does this for every running pod of both colors, and skips a pod whose answer has no
-`node` (a version of the starter without it).
+`node` (a version of the starter without it). With `EXPECTED_COMMIT` set, it also checks that every green
+pod runs that commit, so "green is live" means the build the pipeline deployed is live.
 
 Activation needs an authenticated user: a request without one is answered `401` (`UNAUTHENTICATED`). Secure
 the endpoint with Spring Security like any other write endpoint, for example with a role:

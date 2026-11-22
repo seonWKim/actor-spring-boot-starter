@@ -18,14 +18,18 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.Principal;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.info.BuildProperties;
+import org.springframework.boot.info.GitProperties;
 import org.springframework.boot.web.context.WebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 
 /**
@@ -68,8 +72,30 @@ class GenerationEndpointTest {
         }
     }
 
+    /** Spring Boot's build and git info, as {@code springBoot { buildInfo() }} and git.properties give it. */
+    @Configuration(proxyBeanMethods = false)
+    static class BuildInfo {
+        @Bean
+        BuildProperties buildProperties() {
+            Properties properties = new Properties();
+            properties.setProperty("version", "1.4.0");
+            return new BuildProperties(properties);
+        }
+
+        @Bean
+        GitProperties gitProperties() {
+            Properties properties = new Properties();
+            properties.setProperty("commit.id", "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5");
+            return new GitProperties(properties);
+        }
+    }
+
     private static ConfigurableApplicationContext start(String... properties) {
-        return new SpringApplicationBuilder(App.class)
+        return start(new Class<?>[] {App.class}, properties);
+    }
+
+    private static ConfigurableApplicationContext start(Class<?>[] sources, String... properties) {
+        return new SpringApplicationBuilder(sources)
                 .web(WebApplicationType.SERVLET)
                 .properties(
                         "server.port=0",
@@ -104,6 +130,25 @@ class GenerationEndpointTest {
     private static String activation(String color, long expectedEpoch, String operationId) {
         return "{\"color\":\"" + color + "\",\"expectedEpoch\":" + expectedEpoch + ",\"operationId\":\"" + operationId
                 + "\"}";
+    }
+
+    @Test
+    void theNodeViewShowsTheBuildTheNodeRunsWhenSpringBootKnowsIt() throws Exception {
+        try (ConfigurableApplicationContext context = start(new Class<?>[] {App.class, BuildInfo.class})) {
+            JsonNode build =
+                    call(context, "GET", null, null).body().path("node").path("build");
+
+            assertThat(build.path("version").asText()).isEqualTo("1.4.0");
+            assertThat(build.path("commit").asText()).isEqualTo("d4e5f6a");
+        }
+        try (ConfigurableApplicationContext context = start()) {
+            JsonNode build =
+                    call(context, "GET", null, null).body().path("node").path("build");
+
+            assertThat(build.isMissingNode() || build.isNull())
+                    .as("without build or git info")
+                    .isTrue();
+        }
     }
 
     @Test

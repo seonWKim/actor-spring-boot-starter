@@ -29,6 +29,10 @@
   only while it is an `Up` member, without `management.endpoint.health.group.readiness.include` in the
   application. An include of the application's own replaces it; `management.health.actor.readiness.enabled:
   false` turns it off.
+- **The generation endpoint shows the build each node runs (#313).** `node.build` holds `version` (Spring
+  Boot's build info) and `commit` (`git.properties`), so a blue-green release can check which build is live
+  from one endpoint. `blue-green.sh verify` checks `EXPECTED_COMMIT` on every green pod. The deployments
+  guide recommends `<tag>@<commit>#<ci-run-id>` as the operation ID.
 - **`spring.actor.remote.bind-hostname` and `bind-port` (#283).** Listen on another address or port than the
   one other nodes use, for a StatefulSet pod's DNS name, NAT or a load balancer.
 - **The BOM manages Pekko Management (#303).** `actor-bom` also lists `pekko-management_3`,

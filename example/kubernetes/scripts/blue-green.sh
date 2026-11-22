@@ -7,7 +7,9 @@
 #                                     compare-and-set on the epoch), then point the HTTP Service at green
 #   blue-green.sh verify           3. wait until the record says green, every running pod of both colors
 #                                     reads its epoch (node.active in GET /actuator/generation), and the
-#                                     Service's endpoints are exactly the green pods
+#                                     Service's endpoints are exactly the green pods. With
+#                                     EXPECTED_COMMIT set, every green pod must also run that commit
+#                                     (node.build.commit, from the app's git.properties)
 #   blue-green.sh retire           4. delete blue once green has served for a while
 #   blue-green.sh rollback         activate blue again (a new, higher epoch) and point the Service at it
 # activate and rollback take the epoch they expect and an operation ID from EXPECTED_EPOCH and
@@ -89,6 +91,18 @@ every_pod_reads_record() {
     done
 }
 
+# Every running pod of the color runs the commit $EXPECTED_COMMIT (node.build.commit). A pod runs one
+# build for its whole life, so this checks once instead of waiting.
+every_pod_runs_commit() {
+    for pod in $(running_pods "$1"); do
+        commit=$(generation "$pod" | jq -r '.node.build.commit // "unknown"')
+        if [ "$commit" != "$EXPECTED_COMMIT" ]; then
+            echo "$pod runs commit $commit, not $EXPECTED_COMMIT" >&2
+            return 1
+        fi
+    done
+}
+
 # Retries "$@" every 2 seconds until it succeeds or $TIMEOUT seconds have passed.
 until_ok() {
     what=$1; shift
@@ -145,6 +159,9 @@ activate)
 verify)
     until_ok "the generation record to say green" record_says green "$GREEN"
     until_ok "every pod to read the new epoch" every_pod_reads_record
+    if [ -n "${EXPECTED_COMMIT:-}" ]; then
+        every_pod_runs_commit "$GREEN"
+    fi
     until_ok "the Service to serve only green" serves_only "$GREEN"
     ;;
 rollback)

@@ -41,10 +41,27 @@ public class GenerationEndpoint {
      *     before the first activation
      * @param readAt when this node read it from the store (ISO-8601)
      * @param colorActive whether this node's color is the active one in that read
+     * @param build the build this node runs, from Spring Boot's {@code BuildProperties} and
+     *     {@code GitProperties}; null without either
      * @param warm whether the {@code actorWarmup} health indicator is {@code UP}; null without one (not
      *     in cluster mode)
      */
-    public record Node(@Nullable Active active, String readAt, boolean colorActive, @Nullable Boolean warm) {}
+    public record Node(
+            @Nullable Active active,
+            String readAt,
+            boolean colorActive,
+            @Nullable Boolean warm,
+            @Nullable Build build) {}
+
+    /**
+     * The build a node runs, so a release can check that every node of a color runs the tag it deployed.
+     *
+     * @param version the build's version ({@code BuildProperties}, from {@code springBoot { buildInfo() }});
+     *     null without it
+     * @param commit the abbreviated git commit ({@code GitProperties}, from {@code git.properties}); null
+     *     without it
+     */
+    public record Build(@Nullable String version, @Nullable String commit) {}
 
     /**
      * A generation as JSON. {@code activatedAt} is an ISO-8601 string: Actuator's own JSON mapper may not
@@ -75,14 +92,21 @@ public class GenerationEndpoint {
 
     @Nullable private final HealthIndicator warmup;
 
+    @Nullable private final Build build;
+
     public GenerationEndpoint(StoreDeploymentGeneration generation) {
-        this(generation, null);
+        this(generation, null, null);
     }
 
-    /** @param warmup the {@code actorWarmup} health indicator, null without one */
-    public GenerationEndpoint(StoreDeploymentGeneration generation, @Nullable HealthIndicator warmup) {
+    /**
+     * @param warmup the {@code actorWarmup} health indicator, null without one
+     * @param build the build this node runs, null when unknown
+     */
+    public GenerationEndpoint(
+            StoreDeploymentGeneration generation, @Nullable HealthIndicator warmup, @Nullable Build build) {
         this.generation = generation;
         this.warmup = warmup;
+        this.build = build;
     }
 
     /**
@@ -97,7 +121,8 @@ public class GenerationEndpoint {
                 Active.of(nodeActive),
                 read.at().toString(),
                 nodeActive != null && nodeActive.color().equals(generation.color()),
-                warmup == null ? null : Status.UP.equals(warmup.health().getStatus()));
+                warmup == null ? null : Status.UP.equals(warmup.health().getStatus()),
+                build);
         return new Generation(
                 generation.deployment(),
                 generation.color(),
