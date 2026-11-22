@@ -44,9 +44,9 @@ Used with `provider: remote` or `provider: cluster`.
 |---|---|---|---|
 | `spring.actor.remote.hostname` | Pekko's default | `pekko.remote.artery.canonical.hostname` | Host name or address other nodes use to reach this node. |
 | `spring.actor.remote.port` | Pekko's default (`25520`) | `pekko.remote.artery.canonical.port` | Port this node listens on for other nodes, `0` to `65535`. `0` picks a free port. |
-| `spring.actor.remote.bind-hostname` | `hostname` | `pekko.remote.artery.bind.hostname` | Address to listen on when `hostname` is not one of this host's addresses (a DNS name, NAT, a load balancer). Usually `0.0.0.0`. |
-| `spring.actor.remote.bind-port` | `port` | `pekko.remote.artery.bind.port` | Port to listen on when it differs from `port` (NAT, port mapping). |
-| `spring.actor.serialization.application-object-mapper` | `false` | none | Write `JsonSerializable` messages, events and snapshots with a copy of the application's `ObjectMapper` bean instead of the starter's own. Off by default, so a setting made for the REST API (a naming strategy, a date format, a Spring Boot upgrade) does not change what nodes exchange or what the journal stores. Pekko's own Jackson settings (`spring.actor.pekko.serialization.jackson.*`) apply either way. |
+| `spring.actor.remote.bind-hostname` (*new in the next release*) | `hostname` | `pekko.remote.artery.bind.hostname` | Address to listen on when `hostname` is not one of this host's addresses (a DNS name, NAT, a load balancer). Usually `0.0.0.0`. |
+| `spring.actor.remote.bind-port` (*new in the next release*) | `port` | `pekko.remote.artery.bind.port` | Port to listen on when it differs from `port` (NAT, port mapping). |
+| `spring.actor.serialization.application-object-mapper` (*new in the next release*) | `false` | none | Write `JsonSerializable` messages, events and snapshots with a copy of the application's `ObjectMapper` bean instead of the starter's own. Off by default, so a setting made for the REST API (a naming strategy, a date format, a Spring Boot upgrade) does not change what nodes exchange or what the journal stores. Pekko's own Jackson settings (`spring.actor.pekko.serialization.jackson.*`) apply either way. |
 
 ## Cluster
 

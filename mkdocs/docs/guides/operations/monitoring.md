@@ -20,7 +20,7 @@ Add `actor-metrics`, Actuator and a Micrometer registry (Prometheus here):
 
     ```groovy
     dependencies {
-        implementation 'io.github.seonwkim:actor-metrics:1.0.0'
+        implementation 'io.github.seonwkim:actor-metrics:1.1.0'
         implementation 'org.springframework.boot:spring-boot-starter-actuator'
         implementation 'io.micrometer:micrometer-registry-prometheus'
     }
@@ -32,7 +32,7 @@ Add `actor-metrics`, Actuator and a Micrometer registry (Prometheus here):
     <dependency>
         <groupId>io.github.seonwkim</groupId>
         <artifactId>actor-metrics</artifactId>
-        <version>1.0.0</version>
+        <version>1.1.0</version>
     </dependency>
     <dependency>
         <groupId>org.springframework.boot</groupId>

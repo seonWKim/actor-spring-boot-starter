@@ -19,7 +19,8 @@ Set `spring.actor.cluster.downing.strategy`:
 | `down-all` | No side: all nodes stop. |
 | `none` | No downing. Unreachable nodes stay members until removed by hand. |
 
-The default is `keep-majority`. Setting `none` logs a warning at startup: a crashed node then stays an
+The default is `keep-majority` (*new in the next release for clusters joined through seed nodes; 1.1.0 left
+them without downing*). Setting `none` logs a warning at startup: a crashed node then stays an
 unreachable member, and its shards and singletons wait until someone removes it. A node that is downed leaves the cluster and its actor system stops; with the default
 `spring.actor.shutdown.exit-process: true`, the process exits too, and your platform (Kubernetes, systemd)
 starts it again as a fresh node.

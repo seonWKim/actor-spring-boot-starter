@@ -35,7 +35,7 @@ Java 21+ · Spring Boot 3.5+ · Apache 2.0
 === "Gradle"
 
     ```groovy
-    implementation 'io.github.seonwkim:actor-spring-boot-starter:1.0.0'
+    implementation 'io.github.seonwkim:actor-spring-boot-starter:1.1.0'
     ```
 
 === "Maven"
@@ -44,7 +44,7 @@ Java 21+ · Spring Boot 3.5+ · Apache 2.0
     <dependency>
       <groupId>io.github.seonwkim</groupId>
       <artifactId>actor-spring-boot-starter</artifactId>
-      <version>1.0.0</version>
+      <version>1.1.0</version>
     </dependency>
     ```
 

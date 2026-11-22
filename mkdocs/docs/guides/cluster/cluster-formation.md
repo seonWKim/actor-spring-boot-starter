@@ -99,7 +99,7 @@ A node that crashes leaves its row behind; it is ignored once it is older than t
 old rows at any time.
 
 `last_seen` holds the database's time in epoch milliseconds, so nodes in different time zones compare it
-alike. Tables created before this version have `last_seen TIMESTAMP` (and `actor_lease.expires_at
+alike. Tables created by 1.1.0 or earlier have `last_seen TIMESTAMP` (and `actor_lease.expires_at
 TIMESTAMP(3)`): stop the nodes, drop `actor_peer` and `actor_lease`, and let them be created again. Both
 hold only live entries, which the nodes write again within a heartbeat.
 
@@ -107,7 +107,7 @@ hold only live entries, which the nodes write again within a heartbeat.
 
 By default the JDBC stores (peers, leases, generations) and the [event journal](../data/event-sourcing.md)
 share the application's `DataSource` and its pool. To give them a database, a user or a pool of their own,
-declare a `DataSource` bean marked `@ActorDataSource`:
+declare a `DataSource` bean marked `@ActorDataSource` (*new in the next release*):
 
 ```java
 @Configuration
@@ -205,7 +205,7 @@ your store to check it behaves like the built-in ones (see [Testing](../testing.
 
 ## Who is in the cluster
 
-`actorSystem.cluster()` tells a node who it is and who is in the cluster now:
+`actorSystem.cluster()` (*new in the next release*) tells a node who it is and who is in the cluster now:
 
 === "Java"
 
@@ -272,7 +272,7 @@ you set rather than comparing the whole set.
   the port it bound.
 - **Remoting port** (`spring.actor.remote.port`, default `25520`) between all nodes. Other nodes reach this one
   at `spring.actor.remote.hostname`. When that is not an address on the host, such as a StatefulSet pod's DNS
-  name that may not resolve yet at startup, NAT or a load balancer, set `spring.actor.remote.bind-hostname: 0.0.0.0`
+  name that may not resolve yet at startup, NAT or a load balancer, set `spring.actor.remote.bind-hostname: 0.0.0.0` (*new in the next release*)
   so the node listens on every interface (`bind-port` likewise when the port is mapped).
 - **The store** (database or Redis) from every node.
 - The nodes of one cluster use the same `spring.actor.name`: it is the service name their entries are stored

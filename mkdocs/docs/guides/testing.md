@@ -17,7 +17,7 @@ Add it as a test dependency:
 === "Gradle"
 
     ```groovy
-    testImplementation 'io.github.seonwkim:actor-test:1.0.0'
+    testImplementation 'io.github.seonwkim:actor-test:1.1.0'
     ```
 
 === "Maven"
@@ -26,7 +26,7 @@ Add it as a test dependency:
     <dependency>
         <groupId>io.github.seonwkim</groupId>
         <artifactId>actor-test</artifactId>
-        <version>1.0.0</version>
+        <version>1.1.0</version>
         <scope>test</scope>
     </dependency>
     ```
@@ -61,7 +61,7 @@ auto-configured, because the actor system uses them when they are there.
                     .toCompletableFuture()
                     .get();
 
-            assertThat(reply).isEqualTo("hello Ada");
+            assertThat(reply).isEqualTo("Hello, Ada!");
         }
     }
     ```
@@ -82,7 +82,7 @@ auto-configured, because the actor system uses them when they are there.
                 .awaitSpawn()
                 .awaitAsk(GreeterActor.Greet("Ada"))
 
-            assertThat(reply).isEqualTo("hello Ada")
+            assertThat(reply).isEqualTo("Hello, Ada!")
         }
     }
     ```

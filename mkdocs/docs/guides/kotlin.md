@@ -16,8 +16,8 @@ version.
 
 ```kotlin
 dependencies {
-    implementation("io.github.seonwkim:actor-spring-boot-starter:1.0.0")
-    implementation("io.github.seonwkim:actor-kotlin:1.0.0")
+    implementation("io.github.seonwkim:actor-spring-boot-starter:1.1.0")
+    implementation("io.github.seonwkim:actor-kotlin:1.1.0")
 }
 ```
 

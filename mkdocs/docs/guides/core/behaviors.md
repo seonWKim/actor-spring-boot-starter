@@ -397,7 +397,7 @@ The context (`SpringBehaviorContext<C>`) is what an actor can do from its handle
 | `startSingleTimer`, `startTimerAtFixedRate`, `cancelTimer` | [Timers](#timers) |
 | `watch(ref)` | [Watching](#watching-other-actors) |
 | `pipeToSelf(stage, fn)` | [Futures](#futures-pipetoself) |
-| `askToSelf(target, command, timeout, fn)` | Asks `target` and sends this actor the message `fn` builds from the reply or the error. See [Messaging](messaging.md#asking-from-inside-an-actor). |
+| `askToSelf(target, command, timeout, fn)` (*new in the next release*) | Asks `target` and sends this actor the message `fn` builds from the reply or the error. See [Messaging](messaging.md#asking-from-inside-an-actor). |
 | `messageAdapter(Type.class, fn)` | A ref that accepts another actor's reply type and delivers it as one of this actor's commands. See [Messaging](messaging.md#replying-to-an-actor-without-ask). |
 | `registerWithReceptionist(name)` | Registers this actor under a service name. See [Receptionist](receptionist.md). |
 | `unwrap(Class)` | The underlying Pekko `ActorContext`, for features the starter doesn't wrap |

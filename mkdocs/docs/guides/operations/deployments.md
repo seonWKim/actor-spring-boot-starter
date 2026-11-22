@@ -174,7 +174,7 @@ management:
 ```
 
 **The `generation` endpoint.** `GET /actuator/generation` returns this node's color, the active
-generation in the store (`active`) and what this node reads now (`node`). `POST /actuator/generation` with `color`, `expectedEpoch` (0 before the first activation) and
+generation in the store (`active`) and what this node reads now (`node`, *new in the next release*). `POST /actuator/generation` with `color`, `expectedEpoch` (0 before the first activation) and
 `operationId` activates a color:
 
 ```bash
@@ -246,12 +246,12 @@ it in `actor.generation.activations`, tagged with `outcome`. A request that Spri
 reaches the endpoint, so it shows in Spring Security's events instead.
 
 **Fencing in your code.** Inject `DeploymentGeneration`. Without `spring.actor.generation.color` the
-starter's bean is a no-op: always active, `stamp()` returns 0 and nothing is stale, so the same code runs
+starter's bean is a no-op (*new in the next release*): always active, `stamp()` returns 0 and nothing is stale, so the same code runs
 with and without blue-green. Your own `DeploymentGeneration` bean replaces it.
 
 Stamp a message with `stamp()` where the work starts (it fails when this node's color is not active). A
 message that implements `GenerationStamped` (a record with an `epoch` component does) can be checked where
-it runs by wrapping its handler with `ifCurrent`: a message of an older epoch is dropped and logged as a
+it runs by wrapping its handler with `ifCurrent` (*new in the next release*): a message of an older epoch is dropped and logged as a
 warning on the actor's log, and the handler does not run.
 
 === "Java"

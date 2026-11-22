@@ -14,7 +14,7 @@ Spring Boot 2 users stay on the 0.x line (`spring-boot-starter-actor`).
 === "Gradle"
 
     ```groovy
-    implementation 'io.github.seonwkim:actor-spring-boot-starter:1.0.0'
+    implementation 'io.github.seonwkim:actor-spring-boot-starter:1.1.0'
     ```
 
 === "Maven"
@@ -23,7 +23,7 @@ Spring Boot 2 users stay on the 0.x line (`spring-boot-starter-actor`).
     <dependency>
       <groupId>io.github.seonwkim</groupId>
       <artifactId>actor-spring-boot-starter</artifactId>
-      <version>1.0.0</version>
+      <version>1.1.0</version>
     </dependency>
     ```
 
@@ -31,7 +31,7 @@ The latest version is on [Maven Central](https://central.sonatype.com/artifact/i
 For cluster features (sharding, singletons, replicated data), use `actor-spring-boot-starter-cluster`
 instead. Other modules are listed on the [home page](index.md#modules).
 
-Writing Kotlin? Add `io.github.seonwkim:actor-kotlin:1.0.0` too, for `suspend` functions and reified
+Writing Kotlin? Add `io.github.seonwkim:actor-kotlin:1.1.0` too, for `suspend` functions and reified
 helpers (see the [Kotlin guide](guides/kotlin.md)). Every code sample in these docs has a Java and a
 Kotlin tab; your choice applies to the whole site.
 
