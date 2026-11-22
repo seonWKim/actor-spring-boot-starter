@@ -90,6 +90,8 @@ jobs:
           sed -i.bak -E "s/^version=[0-9]+\.[0-9]+\.[0-9]+/version=${{ steps.bump.outputs.new_version }}/" gradle.properties
           rm gradle.properties.bak
           git diff gradle.properties
+          # The docs show the released version, and "new in the next release" becomes "since <version>".
+          python3 scripts/docs/docs_version.py set ${{ steps.bump.outputs.new_version }}
 
       - name: ✅ Commit version bump
         if: github.event.inputs.bumpType != 'republish'
@@ -102,7 +104,7 @@ jobs:
             exit 0
           fi
 
-          git add gradle.properties
+          git add gradle.properties README.md mkdocs/docs
           git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
 
       - name: 🚀 Push release branch

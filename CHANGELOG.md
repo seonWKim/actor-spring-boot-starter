@@ -4,6 +4,16 @@
 
 ### Breaking changes
 
+- **The starter's own Jackson mapper for messages, events and snapshots (#288).** `JsonSerializable` messages,
+  events and snapshots were written with a copy of the application's `ObjectMapper`; now the starter uses its
+  own, so REST settings (a naming strategy, a date format) no longer change what nodes exchange or what the
+  journal stores. `spring.actor.serialization.application-object-mapper: true` brings back the old behavior.
+- **keep-majority downing in every cluster (#287).** A cluster joined through seed nodes had no downing unless
+  `spring.actor.cluster.downing.strategy` was set; `keep-majority` is now the default whenever the provider is
+  `cluster`. `none` still turns it off, with a warning.
+- **`actor_peer.last_seen` and `actor_lease.expires_at` are epoch milliseconds (#289).** They were `TIMESTAMP`
+  columns read in the JVM's time zone, so nodes in different zones disagreed. Drop both tables once and let
+  them be created again; they hold only live entries.
 - **No more relocation POMs for the 0.x coordinates (#282).** `spring-boot-starter-actor`,
   `spring-boot-starter-actor_3` and `spring-boot-starter-actor-metrics` pointed to the 1.0 artifacts in 1.0.0 and
   1.1.0 and are no longer published. Use `actor-spring-boot-starter` and `actor-metrics` (the 1.0.0 entry has the
@@ -11,6 +21,8 @@
 
 ### Features
 
+- **`spring.actor.remote.bind-hostname` and `bind-port` (#283).** Listen on another address or port than the
+  one other nodes use, for a StatefulSet pod's DNS name, NAT or a load balancer.
 - **`@ActorDataSource`: a `DataSource` for the starter's tables (#282).** A `DataSource` bean marked
   `@ActorDataSource` (declared with `@Bean(defaultCandidate = false)`) is used by the JDBC peer registry, lease
   store and generation store, the event journal and snapshots, and their schema scripts, instead of the
@@ -48,6 +60,14 @@
 
 ### Fixes
 
+- **PostgreSQL nodes starting together create the schema in turn (#284).** With `initialize-schema: always`,
+  concurrent `CREATE TABLE IF NOT EXISTS` failed on PostgreSQL; the scripts now run under an advisory lock.
+- **JDBC stores commit with any pool setting (#285).** A pool with auto-commit off left the stores' changes
+  uncommitted; each store call now commits.
+- **Leases are lost on time when the store hangs (#286).** Lease store calls run on their own threads, and the
+  deadline check no longer waits behind them. JDBC lease statements time out after 5 s (#289).
+- **Each blue-green color registers in the discovery store under its own name (#281).** Green no longer gets
+  blue's nodes as contact points.
 - **`spring.actor.generation.*` stays out of the Pekko config (#254).** The `generation` keys were also passed
   to Pekko as raw configuration. The configuration reference now lists them, and also `spring.actor.enabled` and the
   `spring.actor.delivery.*` keys, which it was missing.

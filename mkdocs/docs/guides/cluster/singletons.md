@@ -168,7 +168,7 @@ Call `asClusterSingleton()` on the spawn builder:
 ### A handle you can use at once
 
 `spawn()` returns a `CompletionStage`, so code that may run before it completes has to hold an
-`Optional` or wait. `singletonHandle()` starts the singleton the same way and returns the handle at once:
+`Optional` or wait. `singletonHandle()` (*new in the next release*) starts the singleton the same way and returns the handle at once:
 
 === "Java"
 

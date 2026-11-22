@@ -122,8 +122,10 @@ about a new subscriber.
 ## Example: chat rooms
 
 The [chat example](../../examples/chat.md) has one actor per room and one per connected user. The room
-actor owns the room's topic: it subscribes users when they join and publishes what they say. Simplified
-from its `ChatRoomActor`:
+actor owns the room's topic: it subscribes users when they join and publishes what they say. It asks for
+the topic with `getOrCreateAsync()` and receives it as a message through `pipeToSelf`, so its thread never
+blocks (`create()` runs while the actor is being spawned). Commands that arrive before the topic wait in a
+list. Simplified from its `ChatRoomActor`:
 
 === "Java"
 
@@ -140,30 +142,57 @@ from its `ChatRoomActor`:
         public interface Command extends JsonSerializable {}
 
         public record JoinRoom(String userId, SpringActorRef<UserActor.Command> user) implements Command {}
-        public record LeaveRoom(String userId, SpringActorRef<UserActor.Command> user) implements Command {}
         public record SendMessage(String userId, String text) implements Command {}
+
+        // Sent by the actor to itself; it never crosses nodes.
+        private record TopicReady(SpringTopicRef<UserActor.Command> topic, Throwable error) implements Command {}
 
         @Override
         public SpringActorBehavior<Command> create(SpringActorContext actorContext) {
             String roomId = actorContext.actorId();
-            SpringTopicRef<UserActor.Command> roomTopic = topics
-                    .topic(TopicName.of(UserActor.Command.class, "chat-room-" + roomId))
-                    .getOrCreate();
-
             return SpringActorBehavior.builder(Command.class, actorContext)
-                    .onMessage(JoinRoom.class, (ctx, msg) -> {
-                        roomTopic.subscribe(msg.user());
-                        return SpringActorBehavior.same();
+                    .withState(ctx -> {
+                        ctx.pipeToSelf(
+                                topics.topic(TopicName.of(UserActor.Command.class, "chat-room-" + roomId))
+                                        .getOrCreateAsync(),
+                                TopicReady::new);
+                        return new Room(roomId);
                     })
-                    .onMessage(LeaveRoom.class, (ctx, msg) -> {
-                        roomTopic.unsubscribe(msg.user());
-                        return SpringActorBehavior.same();
-                    })
-                    .onMessage(SendMessage.class, (ctx, msg) -> {
-                        roomTopic.publish(new UserActor.ChatPosted(roomId, msg.userId(), msg.text()));
-                        return SpringActorBehavior.same();
-                    })
+                    .onMessage(TopicReady.class, Room::onTopicReady)
+                    .onMessage(JoinRoom.class, Room::handle)
+                    .onMessage(SendMessage.class, Room::handle)
                     .build();
+        }
+
+        private static class Room {
+            private final String roomId;
+            private final List<Command> pending = new ArrayList<>();
+            private SpringTopicRef<UserActor.Command> topic;
+
+            Room(String roomId) {
+                this.roomId = roomId;
+            }
+
+            SpringActorBehavior<Command> onTopicReady(TopicReady ready) {
+                if (ready.error() != null) {
+                    throw new IllegalStateException("No topic for room " + roomId, ready.error());
+                }
+                topic = ready.topic();
+                pending.forEach(this::handle);
+                pending.clear();
+                return SpringActorBehavior.same();
+            }
+
+            SpringActorBehavior<Command> handle(Command command) {
+                if (topic == null) {
+                    pending.add(command);
+                } else if (command instanceof JoinRoom join) {
+                    topic.subscribe(join.user());
+                } else if (command instanceof SendMessage send) {
+                    topic.publish(new UserActor.ChatPosted(roomId, send.userId(), send.text()));
+                }
+                return SpringActorBehavior.same();
+            }
         }
     }
     ```
@@ -177,37 +206,53 @@ from its `ChatRoomActor`:
         sealed interface Command : JsonSerializable
 
         data class JoinRoom(val userId: String, val user: SpringActorRef<UserActor.Command>) : Command
-        data class LeaveRoom(val userId: String, val user: SpringActorRef<UserActor.Command>) : Command
         data class SendMessage(val userId: String, val text: String) : Command
+
+        // Sent by the actor to itself; it never crosses nodes.
+        private data class TopicReady(val topic: SpringTopicRef<UserActor.Command>?, val error: Throwable?) : Command
 
         override fun create(actorContext: SpringActorContext): SpringActorBehavior<Command> {
             val roomId = actorContext.actorId()
-            val roomTopic: SpringTopicRef<UserActor.Command> = topics
-                .topic(TopicName.of(UserActor.Command::class.java, "chat-room-$roomId"))
-                .getOrCreate()
-
             return actorBehavior<Command>(actorContext)
-                .onMessage(JoinRoom::class.java) { _, msg ->
-                    roomTopic.subscribe(msg.user)
-                    SpringActorBehavior.same()
+                .withState { ctx ->
+                    ctx.pipeToSelf(
+                        topics.topic(TopicName.of(UserActor.Command::class.java, "chat-room-$roomId"))
+                            .getOrCreateAsync(),
+                    ) { topic, error -> TopicReady(topic, error) }
+                    Room(roomId)
                 }
-                .onMessage(LeaveRoom::class.java) { _, msg ->
-                    roomTopic.unsubscribe(msg.user)
-                    SpringActorBehavior.same()
-                }
-                .onMessage(SendMessage::class.java) { _, msg ->
-                    roomTopic.publish(UserActor.ChatPosted(roomId, msg.userId, msg.text))
-                    SpringActorBehavior.same()
-                }
+                .onMessage(TopicReady::class.java) { room, ready -> room.onTopicReady(ready) }
+                .onMessage(JoinRoom::class.java) { room, msg -> room.handle(msg) }
+                .onMessage(SendMessage::class.java) { room, msg -> room.handle(msg) }
                 .build()
+        }
+
+        private class Room(private val roomId: String) {
+            private val pending = mutableListOf<Command>()
+            private var topic: SpringTopicRef<UserActor.Command>? = null
+
+            fun onTopicReady(ready: TopicReady): SpringActorBehavior<Command> {
+                topic = ready.topic ?: throw IllegalStateException("No topic for room $roomId", ready.error)
+                pending.forEach { handle(it) }
+                pending.clear()
+                return SpringActorBehavior.same()
+            }
+
+            fun handle(command: Command): SpringActorBehavior<Command> {
+                val topic = topic
+                when {
+                    topic == null -> pending.add(command)
+                    command is JoinRoom -> topic.subscribe(command.user)
+                    command is SendMessage -> topic.publish(UserActor.ChatPosted(roomId, command.userId, command.text))
+                }
+                return SpringActorBehavior.same()
+            }
         }
     }
     ```
 
-This simplified version blocks the actor's thread in `create()` until the topic exists. The example's
-real room actor is a [sharded actor](../cluster/sharded-actors.md), so each room lives on one node of the
-cluster while its users can be on any node, and it gets the topic with `getOrCreateAsync()` and
-`pipeToSelf` instead of blocking.
+The example's real room actor is a [sharded actor](../cluster/sharded-actors.md), so each room lives on
+one node of the cluster while its users can be on any node. It also handles leaving the room.
 
 ## Delivery guarantees
 
