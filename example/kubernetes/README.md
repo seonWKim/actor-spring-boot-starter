@@ -369,6 +369,25 @@ scripts/test-strategies.sh
 
 The new versions there are retags of the same image, so it checks the rollout mechanics, not a change in the code. `load.sh` counts a request as ok only when the actor replied: the chat app answers `200` with `Request timed out ...` when an ask fails, so the HTTP status alone would hide lost messages.
 
+`scripts/test-features.sh` checks the starter's deployment features on the same cluster. Last run on kind (3 replicas, 2 workers):
+
+```bash
+scripts/test-features.sh            # STEPS="1 2" runs only those steps
+# 1. readiness and the cluster
+#   ok  join: not ready before the pod was an Up member
+#   ok  leave: not ready once the pod left the cluster, while Spring still accepted traffic
+# 2. disruption budget
+#   ok  drain of spring-actor-demo-worker (2 pod(s)): at least 2 of 3 pods ready throughout
+#   ok  drain: the budget held back the second eviction until the first pod was replaced
+#   ok  load during the drain: total=25957 ok=25957 failed=0
+# 3. readiness follows the color (grace 20s)
+#   ok  before activation: blue ready, green warm but not ready
+#   ok  activation: every green pod in the Service after 5s, every blue pod out after 36s
+#   ok  load across the switch: total=17110 ok=17110 failed=0
+```
+
+Step 1 makes one pod leave through Pekko Management (it turns its routes writable), because a shutdown would also make Spring refuse traffic and hide what `actorCluster` does. Step 3 leaves green serving; run `setup-local.sh` again to start over.
+
 ### Changing Versions
 
 - **Rolling update and canary mix versions in one cluster.** Old and new pods exchange messages, and a sharded entity can move from an old pod to a new one. Keep every message and every piece of entity state that crosses nodes readable by both versions: add fields as optional, don't rename or remove fields or types in the same release, and keep each type on the same serializer (`JsonSerializable` or `CborSerializable`). Make an incompatible change in two releases: first one that reads both formats, then one that writes the new format. Checked on kind with a canary of the chat app: adding a field to `SayHello` lost no requests (28,842 of 28,842), while renaming the class lost 104 of 7,105, which timed out because the old nodes could not read the new type.
@@ -467,6 +486,7 @@ example/kubernetes/
     ├── monitoring.sh           # Installs the monitoring/ kustomization
     ├── canary.sh               # Canary: start, promote, abort
     ├── blue-green.sh           # Blue-green: deploy, activate, verify, retire, rollback
+    ├── test-features.sh        # Checks readiness, the disruption budget and color readiness on kind
     └── test-strategies.sh      # Runs all three strategies under load on kind
 ```
 
