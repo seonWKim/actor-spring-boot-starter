@@ -68,12 +68,30 @@ public final class PekkoTopicManager implements SpringTopicManager {
 
         @Override
         public SpringTopicRef<T> create() {
+            failOnActorThread("create()", "createAsync()");
             return join(createAsync());
         }
 
         @Override
         public SpringTopicRef<T> getOrCreate() {
+            failOnActorThread("getOrCreate()", "getOrCreateAsync()");
             return join(getOrCreateAsync());
+        }
+
+        /**
+         * A blocking call on one of this actor system's threads waits for the root guardian, which may need
+         * that same thread (it does when the caller is an actor's {@code create()}), so it would only time
+         * out. Fail at once instead and name the async form (#308). Pekko names its threads
+         * {@code <system name>-<dispatcher>-<n>}.
+         */
+        private void failOnActorThread(String blocking, String async) {
+            String thread = Thread.currentThread().getName();
+            if (thread.startsWith(PekkoActorSystem.raw(actorSystem).name() + "-")) {
+                throw new IllegalStateException("Topic '" + name + "': " + blocking
+                        + " blocks the calling thread, and this is a thread of the actor system (" + thread
+                        + "), where it would wait out the timeout. Use " + async
+                        + " and receive the topic with pipeToSelf.");
+            }
         }
 
         @Override

@@ -4,6 +4,10 @@
 
 ### Breaking changes
 
+- **Blocking topic calls fail at once on an actor's thread (#308).** `create()` and `getOrCreate()` called on
+  a thread of the actor system, such as in an actor's `create()`, waited out the topic timeout and failed with
+  `TopicCreationTimeoutException`. They now throw `IllegalStateException` that names `createAsync()` or
+  `getOrCreateAsync()`.
 - **The starter's own Jackson mapper for messages, events and snapshots (#288).** `JsonSerializable` messages,
   events and snapshots were written with a copy of the application's `ObjectMapper`; now the starter uses its
   own, so REST settings (a naming strategy, a date format) no longer change what nodes exchange or what the

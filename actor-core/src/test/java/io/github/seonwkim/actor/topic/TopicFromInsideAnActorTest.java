@@ -8,6 +8,8 @@ import io.github.seonwkim.actor.SpringActorBehavior;
 import io.github.seonwkim.actor.SpringActorContext;
 import io.github.seonwkim.actor.SpringActorSystem;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -57,12 +59,40 @@ class TopicFromInsideAnActorTest {
         }
     }
 
+    /** Calls the blocking {@code getOrCreate()} in {@code create()} and records what it threw (#308). */
+    static class BlockingTopicUser implements SpringActor<Command> {
+        private final SpringTopicManager topics;
+        final CompletableFuture<Throwable> thrown = new CompletableFuture<>();
+
+        BlockingTopicUser(SpringTopicManager topics) {
+            this.topics = topics;
+        }
+
+        @Override
+        public SpringActorBehavior<Command> create(SpringActorContext actorContext) {
+            try {
+                topics.topic(TopicName.of(String.class, "blocking"))
+                        .withTimeout(Duration.ofSeconds(2))
+                        .getOrCreate();
+                thrown.complete(null);
+            } catch (RuntimeException e) {
+                thrown.complete(e);
+            }
+            return SpringActorBehavior.builder(Command.class, actorContext).build();
+        }
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableAutoConfiguration
     static class App {
         @Bean
         TopicUser topicUser(SpringTopicManager topics) {
             return new TopicUser(topics);
+        }
+
+        @Bean
+        BlockingTopicUser blockingTopicUser(SpringTopicManager topics) {
+            return new BlockingTopicUser(topics);
         }
     }
 
@@ -85,6 +115,25 @@ class TopicFromInsideAnActorTest {
                             .toCompletableFuture()
                             .join();
                     assertThat(name).isEqualTo("from-actor");
+                });
+    }
+
+    @Test
+    void blockingGetOrCreateOnAnActorsThreadFailsAtOnceNamingTheAsyncForm() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(App.class)
+                .withPropertyValues("spring.actor.pekko.actor.provider=local")
+                .run(context -> {
+                    context.getBean(SpringActorSystem.class)
+                            .actor(BlockingTopicUser.class)
+                            .withId("blocking-topic-user")
+                            .spawn();
+                    // Well under the 2 s topic timeout: the call must fail before it, not by it.
+                    Throwable thrown =
+                            context.getBean(BlockingTopicUser.class).thrown.get(1, TimeUnit.SECONDS);
+                    assertThat(thrown)
+                            .isInstanceOf(IllegalStateException.class)
+                            .hasMessageContaining("getOrCreateAsync()");
                 });
     }
 }

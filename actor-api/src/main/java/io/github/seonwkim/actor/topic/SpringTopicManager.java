@@ -14,7 +14,8 @@ import java.util.concurrent.CompletionStage;
  * }</pre>
  *
  * <p>{@code create()} and {@code getOrCreate()} block the caller until the topic exists. Inside an actor,
- * or anywhere threads are shared, use {@code createAsync()} or {@code getOrCreateAsync()}.
+ * or anywhere threads are shared, use {@code createAsync()} or {@code getOrCreateAsync()}. Called on a thread
+ * of the actor system, the blocking forms throw {@link IllegalStateException} at once.
  */
 public interface SpringTopicManager {
 
@@ -32,10 +33,16 @@ public interface SpringTopicManager {
          *
          * @throws io.github.seonwkim.actor.exception.TopicAlreadyExistsException if it already exists here
          * @throws io.github.seonwkim.actor.exception.TopicCreationTimeoutException if creation timed out
+         * @throws IllegalStateException if called on a thread of the actor system; use {@link #createAsync()}
          */
         SpringTopicRef<T> create();
 
-        /** The topic on this node, created if it doesn't exist yet. Blocks until it exists. */
+        /**
+         * The topic on this node, created if it doesn't exist yet. Blocks until it exists.
+         *
+         * @throws IllegalStateException if called on a thread of the actor system; use {@link
+         *     #getOrCreateAsync()}
+         */
         SpringTopicRef<T> getOrCreate();
 
         /**
