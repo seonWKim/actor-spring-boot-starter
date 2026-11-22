@@ -125,22 +125,15 @@ never addresses. An unreachable peer shows only in the count: one partitioned pe
 unhealthy. `actorWarmup` details hold `selfUp`, `upMembers`, `minMembers` and `discovery` (`REACHABLE`,
 `UNREACHABLE` or `NOT_USED`). `management.health.actor.enabled=false` turns all of them off.
 
-Neither is in the Kubernetes probe groups by default. Add `actorCluster` to readiness, so a pod gets traffic
-only once it is a cluster member and stops getting it as soon as it leaves:
+In cluster mode the starter puts `actorCluster` in the readiness group (*new in the next release*; with 1.1.0,
+set `management.endpoint.health.group.readiness.include: readinessState,actorCluster` yourself). A pod gets
+traffic only once it is a cluster member and stops getting it as soon as it leaves. This applies when
+Spring Boot's probes are on (`management.endpoint.health.probes.enabled: true`, or on Kubernetes) and the
+application doesn't set `management.endpoint.health.group.readiness.include` itself; an include of your own
+replaces it. `management.health.actor.readiness.enabled: false` turns it off.
 
-```yaml
-management:
-  endpoint:
-    health:
-      probes:
-        enabled: true
-      group:
-        readiness:
-          include: readinessState,actorCluster
-```
-
-Keep it out of liveness: a node that is still joining is not broken, and restarting it would only delay the
-join. Cluster Bootstrap reaches pods through Pekko Management, not through the readiness-gated Service, so a
+`actorCluster` stays out of liveness: a node that is still joining is not broken, and restarting it would
+only delay the join. Cluster Bootstrap reaches pods through Pekko Management, not through the readiness-gated Service, so a
 cluster still forms while no pod is ready yet.
 
 ### Actuator on its own port
@@ -226,7 +219,7 @@ Go through this list before the first release of a clustered application.
 
 **Health and monitoring**
 
-- [ ] The readiness group includes `actorCluster`; liveness does not.
+- [ ] The readiness group includes `actorCluster` (the default with probes on); liveness does not.
 - [ ] Actuator runs on its own port (`management.server.port`), open only to monitoring and the kubelet
       ([above](#actuator-on-its-own-port)).
 - [ ] `actor-metrics` is on the classpath and Prometheus scrapes `/actuator/prometheus`.

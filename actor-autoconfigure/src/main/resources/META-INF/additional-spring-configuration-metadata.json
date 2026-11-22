@@ -26,6 +26,12 @@
       "defaultValue": true
     },
     {
+      "name": "management.health.actor.readiness.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether, in cluster mode with the health probes enabled, the readiness group includes actorCluster when the application doesn't set management.endpoint.health.group.readiness.include, so a node takes traffic only while it is an Up member.",
+      "defaultValue": true
+    },
+    {
       "name": "management.health.actor.warmup.min-members",
       "type": "java.lang.Integer",
       "description": "Up members the cluster must have before actorWarmup (and the warmup health group) reports UP. Set it to the number of replicas a new deployment must have joined before it is activated.",
