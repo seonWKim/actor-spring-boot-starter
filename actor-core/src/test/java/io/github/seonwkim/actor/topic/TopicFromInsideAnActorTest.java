@@ -129,9 +129,8 @@ class TopicFromInsideAnActorTest {
                             .withId("blocking-topic-user")
                             .spawn();
                     // Well under the 2 s topic timeout: the call must fail before it, not by it.
-                    Throwable thrown = context.getBean(BlockingTopicUser.class)
-                            .thrown
-                            .get(1, TimeUnit.SECONDS);
+                    Throwable thrown =
+                            context.getBean(BlockingTopicUser.class).thrown.get(1, TimeUnit.SECONDS);
                     assertThat(thrown)
                             .isInstanceOf(IllegalStateException.class)
                             .hasMessageContaining("getOrCreateAsync()");
