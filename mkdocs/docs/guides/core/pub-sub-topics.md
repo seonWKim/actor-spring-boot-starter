@@ -64,7 +64,8 @@ Inject `SpringTopicManager` and call `topic(name)`, then one of:
 `getOrCreate()` and `create()` **block the calling thread** until the topic is ready (usually much less
 than a millisecond). That is fine in a service, but not on an actor's thread: there, use the async form and
 receive the topic as a message with `pipeToSelf`, as the [chat example](../../examples/chat.md)'s room
-actor does. Call them once and keep the `SpringTopicRef`, for example in a service field or in an actor's
+actor does. Called on a thread of the actor system (an actor's `create()` or handler), the blocking forms
+throw `IllegalStateException` at once instead of waiting out the timeout. Call them once and keep the `SpringTopicRef`, for example in a service field or in an actor's
 state:
 
 === "Java"
