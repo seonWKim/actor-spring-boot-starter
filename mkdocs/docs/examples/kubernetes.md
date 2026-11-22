@@ -115,7 +115,13 @@ at a time, so shards and singletons move off one node at a time. `blue-green.sh 
 that selects green's pods.
 
 `scripts/test-strategies.sh` runs all three under load on the kind cluster and fails if any request
-failed. `scripts/load.sh` counts a request as ok only when the actor replied.
+failed. `scripts/test-features.sh` checks the starter's deployment features there:
+
+- a new pod is not ready before it joins the cluster, and a pod that leaves the cluster stops being ready
+  while Spring still accepts traffic;
+- draining a node under load evicts one pod at a time (the PodDisruptionBudget) and no request fails;
+- with readiness that follows the color, one Service selects both colors and activating green moves the
+  traffic with no selector change and no failed request. `scripts/load.sh` counts a request as ok only when the actor replied.
 
 Rolling updates and canaries mix versions in one cluster, so messages and sharded state must stay
 readable by both versions. The [Deployments guide](../guides/operations/deployments.md) explains how.
