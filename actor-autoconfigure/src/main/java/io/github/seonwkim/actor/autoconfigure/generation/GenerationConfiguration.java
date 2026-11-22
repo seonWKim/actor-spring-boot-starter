@@ -12,6 +12,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.health.HealthIndicator;
@@ -19,6 +20,8 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.info.BuildProperties;
+import org.springframework.boot.info.GitProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
@@ -98,11 +101,25 @@ public class GenerationConfiguration {
 
         /** Looks the warm-up indicator up by name: its class needs actor-cluster, which may be missing. */
         @Bean
-        GenerationEndpoint generationEndpoint(StoreDeploymentGeneration generation, BeanFactory beans) {
+        GenerationEndpoint generationEndpoint(
+                StoreDeploymentGeneration generation,
+                BeanFactory beans,
+                ObjectProvider<BuildProperties> buildProperties,
+                ObjectProvider<GitProperties> gitProperties) {
             HealthIndicator warmup = beans.containsBean(WARMUP_INDICATOR)
                     ? beans.getBean(WARMUP_INDICATOR, HealthIndicator.class)
                     : null;
-            return new GenerationEndpoint(generation, warmup);
+            return new GenerationEndpoint(
+                    generation, warmup, build(buildProperties.getIfUnique(), gitProperties.getIfUnique()));
+        }
+
+        /** The node's build from Spring Boot's build and git info; null without either. */
+        @Nullable static GenerationEndpoint.Build build(@Nullable BuildProperties build, @Nullable GitProperties git) {
+            if (build == null && git == null) {
+                return null;
+            }
+            return new GenerationEndpoint.Build(
+                    build == null ? null : build.getVersion(), git == null ? null : git.getShortCommitId());
         }
 
         @Bean

@@ -52,7 +52,7 @@ class GenerationEndpointReadTest {
     void theWarmFlagFollowsTheWarmUpIndicator() {
         AtomicReference<Status> warmup = new AtomicReference<>(Status.OUT_OF_SERVICE);
         GenerationEndpoint endpoint = new GenerationEndpoint(
-                node("blue"), () -> Health.status(warmup.get()).build());
+                node("blue"), () -> Health.status(warmup.get()).build(), null);
 
         assertThat(endpoint.read().node().warm()).isFalse();
         warmup.set(Status.UP);

@@ -27,6 +27,8 @@ dependencies {
     compileOnly(project(":actor-persistence"))
     compileOnly(project(":actor-projection"))
     compileOnly("org.springframework:spring-jdbc")
+    // BuildProperties and GitProperties carry a Jackson annotation; only the compiler needs it.
+    compileOnly("com.fasterxml.jackson.core:jackson-annotations")
     compileOnly("org.springframework:spring-tx")
     compileOnly("org.springframework.data:spring-data-redis")
     compileOnly("org.apache.pekko:pekko-management-cluster-bootstrap_3:${pekkoManagementVersion}")
