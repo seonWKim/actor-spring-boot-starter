@@ -66,6 +66,15 @@ This one is adapted from the
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.AskCommand;
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import io.github.seonwkim.actor.serialization.JsonSerializable;
+    import java.util.HashMap;
+    import java.util.Map;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class ClusterMetricsAggregator implements SpringActor<ClusterMetricsAggregator.Command> {
 
@@ -111,6 +120,14 @@ This one is adapted from the
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.AskCommand
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.kotlin.actorBehavior
+    import io.github.seonwkim.actor.serialization.JsonSerializable
+    import org.springframework.stereotype.Component
+
     @Component
     class ClusterMetricsAggregator : SpringActor<ClusterMetricsAggregator.Command> {
 

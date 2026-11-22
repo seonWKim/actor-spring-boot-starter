@@ -278,6 +278,9 @@ constructors, fields and property types:
 === "Java"
 
     ```java
+    import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
+    import org.springframework.context.annotation.Configuration;
+
     @Configuration
     @RegisterReflectionForBinding({HelloActor.SayHello.class, OrderPlaced.class})
     public class NativeHintsConfiguration {}
@@ -286,6 +289,9 @@ constructors, fields and property types:
 === "Kotlin"
 
     ```kotlin
+    import org.springframework.aot.hint.annotation.RegisterReflectionForBinding
+    import org.springframework.context.annotation.Configuration
+
     @Configuration
     @RegisterReflectionForBinding(HelloActor.SayHello::class, OrderPlaced::class)
     class NativeHintsConfiguration

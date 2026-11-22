@@ -54,6 +54,10 @@ A projection is a bean that implements `SpringProjection`:
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.projection.ProjectedEvent;
+    import io.github.seonwkim.actor.projection.SpringProjection;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class BalanceProjection implements SpringProjection<AccountActor.Event> {
 
@@ -87,6 +91,10 @@ A projection is a bean that implements `SpringProjection`:
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.projection.ProjectedEvent
+    import io.github.seonwkim.actor.projection.SpringProjection
+    import org.springframework.stereotype.Component
+
     @Component
     class BalanceProjection(
         private val balances: BalanceRepository, // a Spring Data repository

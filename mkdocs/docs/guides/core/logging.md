@@ -60,6 +60,13 @@ message and returns the map for the time that message is handled:
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import java.util.HashMap;
+    import java.util.Map;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class OrderProcessorActor implements SpringActor<OrderProcessorActor.Command> {
 
@@ -94,6 +101,12 @@ message and returns the map for the time that message is handled:
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.kotlin.actorBehavior
+    import org.springframework.stereotype.Component
+
     @Component
     class OrderProcessorActor : SpringActor<OrderProcessorActor.Command> {
 

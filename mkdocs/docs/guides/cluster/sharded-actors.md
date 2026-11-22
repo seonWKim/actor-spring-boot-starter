@@ -63,6 +63,14 @@ sharded actor bean with the cluster when the actor system starts.
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.AskCommand;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.serialization.JsonSerializable;
+    import io.github.seonwkim.actor.shard.ShardedEntityType;
+    import io.github.seonwkim.actor.shard.SpringShardedActor;
+    import io.github.seonwkim.actor.shard.SpringShardedActorContext;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class HelloActor implements SpringShardedActor<HelloActor.Command> {
 
@@ -103,6 +111,15 @@ sharded actor bean with the cluster when the actor system starts.
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.AskCommand
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.kotlin.actorBehavior
+    import io.github.seonwkim.actor.serialization.JsonSerializable
+    import io.github.seonwkim.actor.shard.ShardedEntityType
+    import io.github.seonwkim.actor.shard.SpringShardedActor
+    import io.github.seonwkim.actor.shard.SpringShardedActorContext
+    import org.springframework.stereotype.Component
+
     @Component
     class HelloActor : SpringShardedActor<HelloActor.Command> {
 

@@ -24,6 +24,13 @@ handlers and its supervision stay as they are.
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import io.github.seonwkim.actor.SupervisionStrategy;
+    import io.github.seonwkim.actor.delivery.ReliableDelivery;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class OrderActor implements SpringActor<OrderActor.Command> {
 
@@ -53,6 +60,14 @@ handlers and its supervision stay as they are.
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.SupervisionStrategy
+    import io.github.seonwkim.actor.delivery.ReliableDelivery
+    import io.github.seonwkim.actor.kotlin.actorBehavior
+    import org.springframework.stereotype.Component
+
     @Component
     class OrderActor(private val orders: OrderRepository) : SpringActor<OrderActor.Command> {
 

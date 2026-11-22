@@ -29,6 +29,13 @@ you need them:
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.ddata.ReplicatedCounter;
+    import io.github.seonwkim.actor.ddata.ReplicatedData;
+    import io.github.seonwkim.actor.ddata.ReplicatedMap;
+    import io.github.seonwkim.actor.ddata.ReplicatedSet;
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+
     @Configuration
     class ReplicatedDataConfig {
 
@@ -52,6 +59,13 @@ you need them:
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.ddata.ReplicatedCounter
+    import io.github.seonwkim.actor.ddata.ReplicatedData
+    import io.github.seonwkim.actor.ddata.ReplicatedMap
+    import io.github.seonwkim.actor.ddata.ReplicatedSet
+    import org.springframework.context.annotation.Bean
+    import org.springframework.context.annotation.Configuration
+
     @Configuration
     class ReplicatedDataConfig {
 

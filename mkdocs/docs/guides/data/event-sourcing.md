@@ -37,6 +37,15 @@ An event-sourced actor is a `SpringActor` whose `create` returns a `SpringEventS
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.AskCommand;
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import io.github.seonwkim.actor.persistence.PersistenceId;
+    import io.github.seonwkim.actor.persistence.SpringEventSourcedBehavior;
+    import io.github.seonwkim.actor.serialization.JsonSerializable;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class AccountActor implements SpringActor<AccountActor.Command> {
 
@@ -78,6 +87,15 @@ An event-sourced actor is a `SpringActor` whose `create` returns a `SpringEventS
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.AskCommand
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.persistence.PersistenceId
+    import io.github.seonwkim.actor.persistence.SpringEventSourcedBehavior
+    import io.github.seonwkim.actor.serialization.JsonSerializable
+    import org.springframework.stereotype.Component
+
     @Component
     class AccountActor : SpringActor<AccountActor.Command> {
 
