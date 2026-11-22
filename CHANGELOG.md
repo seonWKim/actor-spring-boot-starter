@@ -25,6 +25,11 @@
 
 ### Features
 
+- **Readiness that follows the active color (#312).** With `management.health.actor.generation.enabled`, the
+  `actorGeneration` health indicator is `UP` only while this node's color is the active generation, and the
+  readiness group includes it, so a load balancer follows an activation without a selector change or
+  Kubernetes. The color that lost activation stays `UP` for `management.health.actor.generation.grace`
+  (30s), and a store outage keeps each node's last status.
 - **Readiness includes `actorCluster` in cluster mode (#310).** With Spring Boot's probes on, a node is ready
   only while it is an `Up` member, without `management.endpoint.health.group.readiness.include` in the
   application. An include of the application's own replaces it; `management.health.actor.readiness.enabled:

@@ -118,6 +118,7 @@ With Spring Boot Actuator on the classpath, `/actuator/health` gets these compon
 | `actorSystem` | always | `UP` while the actor system runs, `DOWN` once it has terminated. Details: the system's `name`. |
 | `actorCluster` | `spring.actor.provider=cluster` | `UP` when this node is an `Up` member; `OUT_OF_SERVICE` while it has not joined yet, is joining, weakly up, leaving or shutting down; `DOWN` when it was downed or removed, or other members report it unreachable |
 | `actorWarmup` | `spring.actor.provider=cluster` | `UP` when this node is an `Up` member, the cluster has at least `management.health.actor.warmup.min-members` (default 1) `Up` members, and the discovery store answers (with `jdbc` or `redis` discovery); `OUT_OF_SERVICE` otherwise |
+| `actorGeneration` (*new in the next release*) | `spring.actor.generation.color` and `management.health.actor.generation.enabled=true` | `UP` while this node's color is the active generation; `OUT_OF_SERVICE` otherwise, never `DOWN`. See [Deployments](deployments.md#requests-at-the-cutover). |
 
 `actorCluster` details hold this node's status (`selfStatus`, `NOT_JOINED` before it joins), whether it is
 unreachable (`selfUnreachable`), the member count (`members`) and the unreachable count (`unreachable`),

@@ -342,12 +342,36 @@ and a Service that selects only pods that are not ready yet has no endpoints. Me
 Blue keeps running and serving until `retire`, so a node whose proxy rules still point at blue for a moment
 after the switch still gets answers.
 
-When readiness itself switches the colors (the standby refuses traffic until it is activated, and one
-Service selects both), the cutover waits for readiness to propagate: each pod's readiness probe has to pass
+**Readiness that follows the color** (*new in the next release*). With
+`management.health.actor.generation.enabled: true`, the `actorGeneration` health indicator is `UP` while this
+node's color is the active generation and `OUT_OF_SERVICE` otherwise, and with the probes on
+(`management.endpoint.health.probes.enabled: true`) the readiness group includes it. One load balancer
+target group (or one Service) can then hold both colors, and activation alone moves the traffic, without a
+selector change, a second target group or Kubernetes:
+
+1. Deploy green beside blue. Green passes `/actuator/health/warmup` (warm-up ignores the color) and fails
+   readiness.
+2. `POST /actuator/generation` activates green. Within `spring.actor.generation.refresh` each node reads it:
+   green turns `UP`, blue `OUT_OF_SERVICE`.
+3. The load balancer's health checks admit green and drain blue.
+
+A color that loses activation stays `UP` for `management.health.actor.generation.grace` (default 30s), so
+the load balancer admits green before it drains blue. Set it to at least the time your load balancer takes
+to admit a target (its interval times its healthy threshold). During the grace blue still serves, as it
+does until `retire` in the selector mode, and work it stamps is refused as stale. While the store can't be
+read, each node keeps its last status, so an outage doesn't take both colors out. A node that starts with
+its color inactive gets no grace.
+
+Turn it on only where readiness should switch the colors: it also makes the standby's overall
+`/actuator/health` `OUT_OF_SERVICE`, and `kubectl rollout status` waits forever for a standby
+Deployment's pods. The example's `blue-green.sh` keeps the selector mode.
+
+In that mode the cutover waits for readiness to propagate: each pod's readiness probe has to pass
 (`periodSeconds` times `successThreshold` for the new color, `periodSeconds` times `failureThreshold` for the
 old one), then the endpoint controller and every node's kube-proxy update. **Shorter probe intervals shorten
-that window but don't close it**: requests routed during it reach a pod that is about to leave or none at
-all. This mode was not measured here. Close the window with draining instead:
+that window but don't close it**: without the grace, requests routed during it reach a pod that is about to
+leave or none at all. The grace keeps blue in the pool until green is in it. This mode was not measured
+here. The selector mode closes the window with draining:
 
 - switch with the Service selector (or another routing change) while both colors are ready, and keep the old
   pods running until `verify` shows the Service no longer selects them (`retire` comes last);

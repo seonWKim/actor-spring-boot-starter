@@ -1,6 +1,8 @@
 package io.github.seonwkim.actor.autoconfigure.health;
 
+import io.github.seonwkim.actor.autoconfigure.generation.GenerationConfiguration;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.cloud.CloudPlatform;
 import org.springframework.boot.env.EnvironmentPostProcessor;
@@ -10,13 +12,15 @@ import org.springframework.util.ClassUtils;
 
 /**
  * Puts {@code actorCluster} in the {@code readiness} health group in cluster mode, so a node takes
- * traffic only while it is an {@code Up} member: not before it joins, and not while it leaves.
+ * traffic only while it is an {@code Up} member: not before it joins, and not while it leaves. With
+ * {@code management.health.actor.generation.enabled}, also {@code actorGeneration}, so a node takes
+ * traffic only while its color is the active one.
  *
- * <p>It adds {@code management.endpoint.health.group.readiness.include=readinessState,actorCluster} as
- * the lowest-precedence property source, only when the application sets no {@code readiness.include} of
- * its own (in any property source, its default properties included), Spring Boot enables the probes (the
- * property, or Kubernetes or Cloud Foundry) and the {@code actorCluster} indicator exists.
- * {@code management.health.actor.readiness.enabled=false} turns this off.
+ * <p>It sets {@code management.endpoint.health.group.readiness.include} to {@code readinessState} plus
+ * those members, as the lowest-precedence property source, only when the application sets no
+ * {@code readiness.include} of its own (in any property source, its default properties included), Spring
+ * Boot enables the probes (the property, or Kubernetes or Cloud Foundry) and the indicators exist.
+ * {@code management.health.actor.readiness.enabled=false} turns it off.
  */
 public class ActorReadinessDefaults implements EnvironmentPostProcessor {
 
@@ -26,23 +30,33 @@ public class ActorReadinessDefaults implements EnvironmentPostProcessor {
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        if (applies(environment, application.getClassLoader())) {
-            environment
-                    .getPropertySources()
-                    .addLast(new MapPropertySource(SOURCE, Map.of(INCLUDE, "readinessState,actorCluster")));
+        String include = include(environment, application.getClassLoader());
+        if (include != null) {
+            environment.getPropertySources().addLast(new MapPropertySource(SOURCE, Map.of(INCLUDE, include)));
         }
     }
 
-    static boolean applies(ConfigurableEnvironment environment, ClassLoader classLoader) {
-        return !environment.containsProperty(INCLUDE)
-                && !environment.containsProperty(INCLUDE + "[0]")
-                && environment.getProperty("spring.actor.enabled", Boolean.class, true)
-                && "cluster".equals(environment.getProperty("spring.actor.provider"))
-                && environment.getProperty(ActorHealthConfiguration.ENABLED, Boolean.class, true)
-                && environment.getProperty(ENABLED, Boolean.class, true)
-                && probesEnabled(environment)
-                && ClassUtils.isPresent(ActorHealthConfiguration.ACTUATOR, classLoader)
-                && ClassUtils.isPresent("io.github.seonwkim.actor.internal.cluster.ClusterStateView", classLoader);
+    /** The readiness group's members, or null to leave the group to Spring Boot and the application. */
+    @Nullable static String include(ConfigurableEnvironment environment, ClassLoader classLoader) {
+        if (environment.containsProperty(INCLUDE)
+                || environment.containsProperty(INCLUDE + "[0]")
+                || !environment.getProperty("spring.actor.enabled", Boolean.class, true)
+                || !environment.getProperty(ActorHealthConfiguration.ENABLED, Boolean.class, true)
+                || !environment.getProperty(ENABLED, Boolean.class, true)
+                || !probesEnabled(environment)
+                || !ClassUtils.isPresent(ActorHealthConfiguration.ACTUATOR, classLoader)) {
+            return null;
+        }
+        StringBuilder members = new StringBuilder("readinessState");
+        if ("cluster".equals(environment.getProperty("spring.actor.provider"))
+                && ClassUtils.isPresent("io.github.seonwkim.actor.internal.cluster.ClusterStateView", classLoader)) {
+            members.append(",actorCluster");
+        }
+        if (environment.containsProperty("spring.actor.generation.color")
+                && environment.getProperty(GenerationConfiguration.HEALTH_ENABLED, Boolean.class, false)) {
+            members.append(",actorGeneration");
+        }
+        return members.toString().equals("readinessState") ? null : members.toString();
     }
 
     /** The same rule as Spring Boot's probes condition. */
