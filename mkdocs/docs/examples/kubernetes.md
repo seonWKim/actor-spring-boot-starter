@@ -69,8 +69,10 @@ example/kubernetes/
 ### Cluster formation through the Kubernetes API
 
 The chat app's `kubernetes` profile clears the seed-node list
-(`application-kubernetes.yml`), and the ConfigMap in `base/` sets Cluster Bootstrap under
-`spring.actor.pekko.management.cluster.bootstrap` with `discovery-method: kubernetes-api`. Each pod lists
+(`application-kubernetes.yml`), and the ConfigMap in `base/` sets `spring.actor.cluster.join: discovery`
+with `discovery.method: kubernetes-api`, the same typed keys as the
+[cluster formation guide](../guides/cluster/cluster-formation.md). Raw `spring.actor.pekko.*` keys in it
+are only for settings without a typed key, such as the Kubernetes API's pod selector. Each pod lists
 the pods with the label `app=spring-actor` (the RBAC Role in `base/rbac.yaml` allows that), contacts them
 on the management port 7626, and joins the existing cluster or forms a new one. All overlays use Pekko's
 default ports: remoting 25520, management 7626.

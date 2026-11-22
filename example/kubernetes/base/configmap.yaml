@@ -19,24 +19,27 @@ data:
         remote:
           hostname: ${POD_IP}
           port: 25520
+          bind-hostname: 0.0.0.0
+        # The pods find each other through the Kubernetes API (cluster-formation guide).
+        cluster:
+          join: discovery
+          discovery:
+            method: kubernetes-api
+            service-name: spring-actor
+          downing:
+            strategy: keep-majority
         # Leaving the cluster; fits in the Deployment's 45s grace period (see deployment.yaml).
         shutdown:
           timeout: 25s
+        # Pekko settings that have no typed spring.actor key: timings, the management server, and the
+        # Kubernetes API's pod selector.
         pekko:
           actor:
             allow-java-serialization: off
             warn-about-java-serializer-usage: on
 
-          remote:
-            artery:
-              bind:
-                hostname: 0.0.0.0
-                port: 25520
-
           cluster:
-            downing-provider-class: org.apache.pekko.cluster.sbr.SplitBrainResolverProvider
             split-brain-resolver:
-              active-strategy: keep-majority
               stable-after: 20s
               down-all-when-unstable: 15s
 
@@ -60,8 +63,6 @@ data:
             cluster:
               bootstrap:
                 contact-point-discovery:
-                  discovery-method: kubernetes-api
-                  service-name: spring-actor
                   required-contact-point-nr: 2
                   stable-margin: 5s
                   interval: 1s
@@ -70,7 +71,6 @@ data:
                   contact-with-all-contact-points: true
 
           discovery:
-            method: kubernetes-api
             kubernetes-api:
               pod-namespace: ${NAMESPACE}
               pod-label-selector: app=spring-actor

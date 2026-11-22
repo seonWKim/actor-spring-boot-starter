@@ -74,7 +74,6 @@ class OverlaysTest {
         Object servicePorts = get(resource(resources, "Service", "spring-actor" + suffix), "spec", "ports");
 
         Object remoting = get(actor, "remote", "port");
-        assertThat(get(actor, "pekko", "remote", "artery", "bind", "port")).isEqualTo(remoting);
         assertThat(port(containerPorts, "remoting", "containerPort")).isEqualTo(remoting);
         assertThat(port(servicePorts, "remoting", "targetPort")).isEqualTo(remoting);
 
@@ -170,21 +169,22 @@ class OverlaysTest {
 
     @ParameterizedTest
     @MethodSource("kubernetesApi")
-    void clusterBootstrapSettingsReachPekkoManagement(String dir, String suffix) throws Exception {
-        Map<String, Object> config =
-                applicationYaml(resource(render(dir), "ConfigMap", "spring-actor-config" + suffix));
+    @SuppressWarnings("unchecked")
+    void kubernetesApiDiscoveryIsSetWithTypedKeysOnly(String dir, String suffix) throws Exception {
+        Map<String, Object> actor = (Map<String, Object>) get(
+                applicationYaml(resource(render(dir), "ConfigMap", "spring-actor-config" + suffix)), "spring", "actor");
 
-        assertThat(get(
-                        config,
-                        "spring",
-                        "actor",
-                        "pekko",
-                        "management",
-                        "cluster",
-                        "bootstrap",
-                        "contact-point-discovery",
-                        "discovery-method"))
-                .isEqualTo("kubernetes-api");
+        assertThat(get(actor, "cluster", "join")).isEqualTo("discovery");
+        assertThat(get(actor, "cluster", "discovery", "method")).isEqualTo("kubernetes-api");
+        assertThat(get(actor, "cluster", "downing", "strategy")).isEqualTo("keep-majority");
+        // The raw keys the typed ones set stay out of spring.actor.pekko, so there is one place to change.
+        Map<String, Object> pekko = (Map<String, Object>) actor.get("pekko");
+        assertThat(pekko).doesNotContainKey("remote");
+        assertThat((Map<String, Object>) get(pekko, "discovery")).doesNotContainKey("method");
+        assertThat((Map<String, Object>) get(pekko, "cluster"))
+                .doesNotContainKeys("downing-provider-class", "seed-nodes");
+        assertThat((Map<String, Object>) get(pekko, "management", "cluster", "bootstrap", "contact-point-discovery"))
+                .doesNotContainKeys("discovery-method", "service-name");
     }
 
     @ParameterizedTest
