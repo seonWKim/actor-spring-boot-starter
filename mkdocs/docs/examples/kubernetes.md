@@ -53,7 +53,7 @@ the chat on each. Remove everything with `./cleanup-local.sh`.
 ```
 example/kubernetes/
 ├── setup-local.sh, cleanup-local.sh, port-forward-pods.sh
-├── base/                  namespace, RBAC (pod reader), ConfigMap, Services, Deployment, monitors, NetworkPolicy
+├── base/                  namespace, RBAC (pod reader), ConfigMap, Services, Deployment, PodDisruptionBudget, monitors, NetworkPolicy
 ├── overlays/
 │   ├── local/             used by setup-local.sh: 3 replicas, NodePort 30080 (kind maps it to localhost:8080)
 │   ├── dev/, prod/        prod adds an HPA
@@ -109,6 +109,10 @@ shutdown, and that the discovery overlays contain no RBAC and open only the expe
 | Rolling update | `kubectl set image deployment/spring-actor spring-actor=spring-actor-chat:v2 -n spring-actor` | New pods join the cluster one at a time; old pods leave |
 | Canary | `scripts/canary.sh start <image>`, then `promote` or `abort` | A few new pods join the running cluster and get a share of traffic |
 | Blue-green | `scripts/blue-green.sh deploy <image>` (waits for warm-up), `activate` (through the generation endpoint), `verify`, `retire`, `rollback` | A second, separate cluster; the HTTP Service switches in one step |
+
+The base's PodDisruptionBudget (`maxUnavailable: 1`) lets a node drain or a cluster upgrade take one pod
+at a time, so shards and singletons move off one node at a time. `blue-green.sh deploy` gives green a copy
+that selects green's pods.
 
 `scripts/test-strategies.sh` runs all three under load on the kind cluster and fails if any request
 failed. `scripts/load.sh` counts a request as ok only when the actor replied.

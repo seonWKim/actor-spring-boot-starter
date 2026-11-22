@@ -9,6 +9,7 @@ resources:
 - configmap.yaml
 - service.yaml
 - deployment.yaml
+- pdb.yaml
 
 commonLabels:
   app: spring-actor

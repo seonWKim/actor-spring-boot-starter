@@ -185,7 +185,11 @@ main health endpoint does (`management.endpoint.health.show-details`).
 
 ## Production checklist
 
-Go through this list before the first release of a clustered application.
+Go through this list before the first release of a clustered application. On Kubernetes, the
+[Kubernetes example](../../examples/kubernetes.md)'s `base/` is the minimum setup to start from: the RBAC
+for discovery, the cluster ports and NetworkPolicy, the probes on their own port, the `preStop` hook and the
+grace period, a rolling update that never shrinks the cluster, and a PodDisruptionBudget. Its tests check
+that the grace period covers the shutdown it has to wait for.
 
 **Cluster formation and downing**
 
@@ -197,6 +201,8 @@ Go through this list before the first release of a clustered application.
 - [ ] If a singleton or a shard must never run on two nodes at once, it uses a lease
       (`singleton.use-lease`, `sharding.use-lease`), and the lease store stays up: an outage longer than
       110 s stops them ([When the lease store is down](../cluster/split-brain-and-leases.md#when-the-lease-store-is-down)).
+- [ ] On Kubernetes, a PodDisruptionBudget with `maxUnavailable: 1` covers the pods, so a node drain
+      moves one node's shards at a time.
 - [ ] The network lets pods reach each other on the remoting port (`25520` by default) and the Pekko
       Management port. The [Kubernetes example](../../examples/kubernetes.md) lists the rules to ask for.
 - [ ] With `jdbc` or `redis` discovery or leases, only the nodes can write the store: a dedicated Redis
