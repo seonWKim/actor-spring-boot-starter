@@ -1,2 +1,4 @@
 org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitializationDetector=\
 io.github.seonwkim.actor.autoconfigure.persistence.ActorSystemDependsOnDatabaseInitialization
+org.springframework.boot.env.EnvironmentPostProcessor=\
+io.github.seonwkim.actor.autoconfigure.health.ActorReadinessDefaults

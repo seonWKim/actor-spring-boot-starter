@@ -62,10 +62,8 @@ data:
         health:
           probes:
             enabled: true
-          group:
-            readiness:
-              # Ready only while this pod is an Up cluster member.
-              include: readinessState,actorCluster
+          # Readiness includes actorCluster by default in cluster mode: ready only while this pod is an
+          # Up cluster member.
       health:
         actor:
           warmup:
