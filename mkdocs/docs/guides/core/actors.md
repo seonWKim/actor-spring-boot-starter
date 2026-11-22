@@ -28,6 +28,12 @@ handler runs for which message.
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.AskCommand;
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class GreeterActor implements SpringActor<GreeterActor.Command> {
 
@@ -65,6 +71,13 @@ handler runs for which message.
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.AskCommand
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.kotlin.behavior
+    import org.springframework.stereotype.Component
+
     @Component
     class GreeterActor : SpringActor<GreeterActor.Command> {
 

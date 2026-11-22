@@ -66,6 +66,13 @@ handler that changes the state saves it before it replies.
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.AskCommand;
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import io.github.seonwkim.actor.SpringBehaviorContext;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class OrderActor implements SpringActor<OrderActor.Command> {
 
@@ -139,6 +146,14 @@ handler that changes the state saves it before it replies.
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.AskCommand
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.SpringBehaviorContext
+    import io.github.seonwkim.actor.kotlin.actorBehavior
+    import org.springframework.stereotype.Component
+
     @Component
     class OrderActor(private val orderRepository: OrderRepository) : SpringActor<OrderActor.Command> {
 

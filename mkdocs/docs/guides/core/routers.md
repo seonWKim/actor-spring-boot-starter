@@ -20,6 +20,14 @@ They share one command type.
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import io.github.seonwkim.actor.SupervisionStrategy;
+    import io.github.seonwkim.actor.router.RoutingStrategy;
+    import io.github.seonwkim.actor.router.SpringRouterBehavior;
+    import org.springframework.stereotype.Component;
+
     // The worker: an ordinary actor bean
     @Component
     public class ResizeWorker implements SpringActor<ImageRouter.Command> {
@@ -64,6 +72,15 @@ They share one command type.
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.SupervisionStrategy
+    import io.github.seonwkim.actor.kotlin.actorBehavior
+    import io.github.seonwkim.actor.router.RoutingStrategy
+    import io.github.seonwkim.actor.router.SpringRouterBehavior
+    import org.springframework.stereotype.Component
+
     // The worker: an ordinary actor bean
     @Component
     class ResizeWorker(private val imageService: ImageService) : SpringActor<ImageRouter.Command> {

@@ -110,6 +110,13 @@ share the application's `DataSource` and its pool. To give them a database, a us
 declare a `DataSource` bean marked `@ActorDataSource` (*new in the next release*):
 
 ```java
+import com.zaxxer.hikari.HikariDataSource;
+import io.github.seonwkim.actor.ActorDataSource;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
 @Configuration
 class ActorDatabaseConfig {
 

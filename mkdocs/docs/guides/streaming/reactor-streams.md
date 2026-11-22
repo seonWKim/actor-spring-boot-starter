@@ -41,6 +41,10 @@ With `actor-streams` on the classpath, the application has an `ActorStreams` bea
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.SpringActorSystem;
+    import io.github.seonwkim.actor.streams.ActorStreams;
+    import org.springframework.stereotype.Service;
+
     @Service
     public class OrderService {
         private final ActorStreams streams;
@@ -56,6 +60,10 @@ With `actor-streams` on the classpath, the application has an `ActorStreams` bea
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.SpringActorSystem
+    import io.github.seonwkim.actor.streams.ActorStreams
+    import org.springframework.stereotype.Service
+
     @Service
     class OrderService(
         private val streams: ActorStreams,

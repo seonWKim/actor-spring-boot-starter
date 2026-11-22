@@ -165,6 +165,11 @@ An implementation, as a bean:
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.spi.LeaseStore;
+    import java.time.Duration;
+    import java.util.Optional;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class MyLeaseStore implements LeaseStore {
 
@@ -199,6 +204,11 @@ An implementation, as a bean:
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.spi.LeaseStore
+    import java.time.Duration
+    import java.util.Optional
+    import org.springframework.stereotype.Component
+
     @Component
     class MyLeaseStore(private val table: MyLeaseTable) : LeaseStore { // MyLeaseTable: your own storage code
 

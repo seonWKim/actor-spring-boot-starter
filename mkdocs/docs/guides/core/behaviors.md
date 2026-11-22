@@ -32,6 +32,13 @@ handler methods in that object:
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.AskCommand;
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import io.github.seonwkim.actor.SpringBehaviorContext;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class CounterActor implements SpringActor<CounterActor.Command> {
 
@@ -77,6 +84,14 @@ handler methods in that object:
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.AskCommand
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.SpringBehaviorContext
+    import io.github.seonwkim.actor.kotlin.behavior
+    import org.springframework.stereotype.Component
+
     @Component
     class CounterActor : SpringActor<CounterActor.Command> {
 

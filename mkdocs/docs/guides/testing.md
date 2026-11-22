@@ -45,6 +45,13 @@ auto-configured, because the actor system uses them when they are there.
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.SpringActorSystem;
+    import io.github.seonwkim.actor.test.ActorTest;
+    import org.junit.jupiter.api.Test;
+    import org.springframework.beans.factory.annotation.Autowired;
+
+    import static org.assertj.core.api.Assertions.assertThat;
+
     @ActorTest
     class GreeterActorTest {
 
@@ -69,6 +76,16 @@ auto-configured, because the actor system uses them when they are there.
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.SpringActorSystem
+    import io.github.seonwkim.actor.kotlin.actor
+    import io.github.seonwkim.actor.kotlin.awaitAsk
+    import io.github.seonwkim.actor.kotlin.awaitSpawn
+    import io.github.seonwkim.actor.test.ActorTest
+    import org.junit.jupiter.api.Test
+    import kotlinx.coroutines.runBlocking
+    import org.assertj.core.api.Assertions.assertThat
+    import org.springframework.beans.factory.annotation.Autowired
+
     @ActorTest
     class GreeterActorTest {
 

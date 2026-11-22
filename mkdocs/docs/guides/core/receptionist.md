@@ -48,6 +48,12 @@ An actor can register itself when it starts, in its `withState` factory:
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.SpringActor;
+    import io.github.seonwkim.actor.SpringActorBehavior;
+    import io.github.seonwkim.actor.SpringActorContext;
+    import io.github.seonwkim.actor.serialization.JsonSerializable;
+    import org.springframework.stereotype.Component;
+
     @Component
     public class WorkerActor implements SpringActor<WorkerActor.Command> {
 
@@ -74,6 +80,13 @@ An actor can register itself when it starts, in its `withState` factory:
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.SpringActor
+    import io.github.seonwkim.actor.SpringActorBehavior
+    import io.github.seonwkim.actor.SpringActorContext
+    import io.github.seonwkim.actor.kotlin.actorBehavior
+    import io.github.seonwkim.actor.serialization.JsonSerializable
+    import org.springframework.stereotype.Component
+
     @Component
     class WorkerActor : SpringActor<WorkerActor.Command> {
 

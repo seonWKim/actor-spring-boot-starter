@@ -70,6 +70,11 @@ state:
 === "Java"
 
     ```java
+    import io.github.seonwkim.actor.topic.SpringTopicManager;
+    import io.github.seonwkim.actor.topic.SpringTopicRef;
+    import io.github.seonwkim.actor.topic.TopicName;
+    import org.springframework.stereotype.Service;
+
     @Service
     public class AnnouncementService {
         private final SpringTopicRef<UserActor.Command> announcements;
@@ -89,6 +94,11 @@ state:
 === "Kotlin"
 
     ```kotlin
+    import io.github.seonwkim.actor.topic.SpringTopicManager
+    import io.github.seonwkim.actor.topic.SpringTopicRef
+    import io.github.seonwkim.actor.topic.TopicName
+    import org.springframework.stereotype.Service
+
     @Service
     class AnnouncementService(topics: SpringTopicManager) {
 
