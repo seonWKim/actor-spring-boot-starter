@@ -11,6 +11,7 @@ import io.github.seonwkim.actor.spi.GenerationStore;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.springframework.beans.factory.BeanFactory;
@@ -26,6 +27,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 
 /**
  * Blue-green activation and fencing ({@link DeploymentGeneration}) when {@code spring.actor.generation.color}
@@ -44,6 +46,8 @@ public class GenerationConfiguration {
     static final String COLOR = "spring.actor.generation.color";
     static final String METER = "actor.generation.activations";
     static final String WARMUP_INDICATOR = "actorWarmupHealthIndicator";
+    public static final String HEALTH_ENABLED = "management.health.actor.generation.enabled";
+    static final String HEALTH_GRACE = "management.health.actor.generation.grace";
 
     @Bean
     @ConditionalOnProperty(name = COLOR)
@@ -91,6 +95,26 @@ public class GenerationConfiguration {
                     .tag("outcome", event.result().outcome().name())
                     .register(registry)
                     .increment());
+        }
+    }
+
+    /**
+     * The {@code actorGeneration} health indicator, opt-in: on a standby color it makes the overall health
+     * {@code OUT_OF_SERVICE} too. With the probes on, the readiness group includes it.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.springframework.boot.actuate.health.AbstractHealthIndicator")
+    @ConditionalOnProperty(name = COLOR)
+    @ConditionalOnProperty(name = HEALTH_ENABLED, havingValue = "true")
+    static class Health {
+
+        @Bean
+        ActorGenerationHealthIndicator actorGenerationHealthIndicator(
+                StoreDeploymentGeneration generation, Environment environment) {
+            return new ActorGenerationHealthIndicator(
+                    generation,
+                    Clock.systemUTC(),
+                    environment.getProperty(HEALTH_GRACE, Duration.class, Duration.ofSeconds(30)));
         }
     }
 

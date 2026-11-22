@@ -26,6 +26,18 @@
       "defaultValue": true
     },
     {
+      "name": "management.health.actor.generation.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to report actorGeneration, UP while this node's color is the active generation and OUT_OF_SERVICE otherwise, and, with the health probes on, add it to the readiness group, so a load balancer follows an activation. Needs spring.actor.generation.color.",
+      "defaultValue": false
+    },
+    {
+      "name": "management.health.actor.generation.grace",
+      "type": "java.time.Duration",
+      "description": "How long a color that lost activation stays UP in actorGeneration, so the load balancer admits the new color before it drains the old one. Set it to at least the time the load balancer takes to admit a target.",
+      "defaultValue": "30s"
+    },
+    {
       "name": "management.health.actor.readiness.enabled",
       "type": "java.lang.Boolean",
       "description": "Whether, in cluster mode with the health probes enabled, the readiness group includes actorCluster when the application doesn't set management.endpoint.health.group.readiness.include, so a node takes traffic only while it is an Up member.",
