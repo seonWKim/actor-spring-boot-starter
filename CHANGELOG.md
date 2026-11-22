@@ -23,6 +23,10 @@
 
 - **`spring.actor.remote.bind-hostname` and `bind-port` (#283).** Listen on another address or port than the
   one other nodes use, for a StatefulSet pod's DNS name, NAT or a load balancer.
+- **The BOM manages Pekko Management (#303).** `actor-bom` also lists `pekko-management_3`,
+  `pekko-management-cluster-bootstrap_3`, `pekko-management-cluster-http_3` and
+  `pekko-discovery-kubernetes-api_3` at the version the starter is built with, so discovery needs no
+  hand-typed versions.
 - **`@ActorDataSource`: a `DataSource` for the starter's tables (#282).** A `DataSource` bean marked
   `@ActorDataSource` (declared with `@Bean(defaultCandidate = false)`) is used by the JDBC peer registry, lease
   store and generation store, the event journal and snapshots, and their schema scripts, instead of the

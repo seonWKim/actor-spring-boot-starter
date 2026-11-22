@@ -29,15 +29,18 @@ need not agree.
 
 ### Dependencies
 
-Discovery uses Pekko Cluster Bootstrap and the management HTTP server, plus the module of your store:
+Discovery uses Pekko Cluster Bootstrap and the management HTTP server, plus the module of your store. With
+the [BOM](../../getting-started.md#several-modules-import-the-bom) imported, leave out their versions: it
+manages the Pekko Management modules at the version the starter is built with (*new in the next release*;
+with 1.1.0, add `:1.1.1` to each):
 
 === "Gradle"
 
     ```kotlin
-    implementation("io.github.seonwkim:actor-spring-boot-starter-cluster:$version")
-    implementation("org.apache.pekko:pekko-management-cluster-bootstrap_3:1.1.1")
-    implementation("org.apache.pekko:pekko-management-cluster-http_3:1.1.1")
-    implementation("io.github.seonwkim:actor-jdbc:$version")   // or actor-redis
+    implementation("io.github.seonwkim:actor-spring-boot-starter-cluster")
+    implementation("org.apache.pekko:pekko-management-cluster-bootstrap_3")
+    implementation("org.apache.pekko:pekko-management-cluster-http_3")
+    implementation("io.github.seonwkim:actor-jdbc")   // or actor-redis
     ```
 
 === "Maven"
@@ -45,10 +48,24 @@ Discovery uses Pekko Cluster Bootstrap and the management HTTP server, plus the 
     ```xml
     <dependency>
         <groupId>io.github.seonwkim</groupId>
+        <artifactId>actor-spring-boot-starter-cluster</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.pekko</groupId>
+        <artifactId>pekko-management-cluster-bootstrap_3</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.pekko</groupId>
+        <artifactId>pekko-management-cluster-http_3</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>io.github.seonwkim</groupId>
         <artifactId>actor-jdbc</artifactId> <!-- or actor-redis -->
-        <version>${actor.version}</version>
     </dependency>
     ```
+
+`kubernetes-api` discovery also needs `org.apache.pekko:pekko-discovery-kubernetes-api_3`, which the BOM
+manages too.
 
 `actor-jdbc` uses the application's `DataSource` (or [one of its own](#a-separate-datasource)), and `actor-redis` its `RedisConnectionFactory`
 (`spring-boot-starter-data-redis`).
