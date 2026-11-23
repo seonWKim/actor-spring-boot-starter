@@ -18,6 +18,11 @@ updates:
       gradle:
         patterns:
           - "*"
+    ignore:
+      # springdoc 3 is built on Spring Boot 4 and stops the synchronization example from starting on
+      # Boot 3.5. Remove this with the Boot 4 upgrade.
+      - dependency-name: "org.springdoc:*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

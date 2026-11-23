@@ -1,5 +1,4 @@
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
-import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import net.ltgt.gradle.errorprone.CheckSeverity
@@ -75,7 +74,7 @@ configure(subprojects.filter { it.isPlatform() }) {
             packaging = "pom"
             commonPom(project)
         }
-        publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+        publishToMavenCentral()
         // Release builds pass the key (publish.yml); publishToMavenLocal works without one.
         if (project.hasProperty("signingInMemoryKey")) {
             signAllPublications()
@@ -151,7 +150,7 @@ configure(subprojects.filter { !it.isPlatform() }) {
                 commonPom(project)
             }
 
-            publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+            publishToMavenCentral()
             // Release builds pass the key (publish.yml); publishToMavenLocal works without one.
             if (project.hasProperty("signingInMemoryKey")) {
                 signAllPublications()
