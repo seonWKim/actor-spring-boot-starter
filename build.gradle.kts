@@ -1,5 +1,4 @@
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
-import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import net.ltgt.gradle.errorprone.CheckSeverity
@@ -9,16 +8,16 @@ plugins {
     java
     `java-library`
     id("com.diffplug.spotless") version "8.11.0"
-    id("com.vanniktech.maven.publish") version "0.31.0" apply false
+    id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("net.ltgt.errorprone") version "5.2.0"
     id("org.springframework.boot") version "3.5.16" apply false
     id("io.spring.dependency-management") version "1.1.7" apply false
     // Native image builds: applied only by the scheduled smoke test (.github/workflows/native-image.yml).
-    id("org.graalvm.buildtools.native") version "1.1.18" apply false
+    id("org.graalvm.buildtools.native") version "1.1.19" apply false
     // Kotlin 1.9.25 is the version Spring Boot 3.5 manages: actor-kotlin's metadata stays readable
     // by the Kotlin compiler Boot 3.5 applications use.
-    kotlin("jvm") version "1.9.25" apply false
-    kotlin("plugin.spring") version "1.9.25" apply false
+    kotlin("jvm") version "2.4.21" apply false
+    kotlin("plugin.spring") version "2.4.21" apply false
 }
 
 repositories {
@@ -75,7 +74,7 @@ configure(subprojects.filter { it.isPlatform() }) {
             packaging = "pom"
             commonPom(project)
         }
-        publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+        publishToMavenCentral()
         // Release builds pass the key (publish.yml); publishToMavenLocal works without one.
         if (project.hasProperty("signingInMemoryKey")) {
             signAllPublications()
@@ -151,7 +150,7 @@ configure(subprojects.filter { !it.isPlatform() }) {
                 commonPom(project)
             }
 
-            publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+            publishToMavenCentral()
             // Release builds pass the key (publish.yml); publishToMavenLocal works without one.
             if (project.hasProperty("signingInMemoryKey")) {
                 signAllPublications()
@@ -180,8 +179,8 @@ configure(subprojects.filter { !it.isPlatform() }) {
 
         // Only add error-prone dependencies for non-example projects
         if (!project.path.startsWith(":example")) {
-            errorprone("com.uber.nullaway:nullaway:0.14.3")
-            errorprone("com.google.errorprone:error_prone_core:2.52.0")
+            errorprone("com.uber.nullaway:nullaway:0.14.4")
+            errorprone("com.google.errorprone:error_prone_core:2.53.0")
         }
 
         if (project.path == ":actor-core" || project.path.startsWith(":example")) {

@@ -23,7 +23,7 @@ dependencies {
     compileOnly("org.apache.pekko:pekko-actor-typed_3:${pekkoVersion}")
 
     // Micrometer support - bundled in agent JAR for java -jar usage
-    implementation("io.micrometer:micrometer-core:1.17.2")
+    implementation("io.micrometer:micrometer-core:1.18.0")
 
     // Optional: Spring Boot auto-configuration and core (for SpringActorSystem bean when both on classpath)
     compileOnly(platform("org.springframework.boot:spring-boot-dependencies:${springBootVersion}"))
@@ -46,7 +46,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
 
     // Micrometer for testing
-    testImplementation("io.micrometer:micrometer-core:1.17.2")
+    testImplementation("io.micrometer:micrometer-core:1.18.0")
 
     // Add SLF4J Simple binding for tests
     testRuntimeOnly("org.slf4j:slf4j-simple:2.0.20")
