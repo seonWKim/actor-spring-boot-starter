@@ -7,7 +7,7 @@ import net.ltgt.gradle.errorprone.errorprone
 plugins {
     java
     `java-library`
-    id("com.diffplug.spotless") version "8.11.0"
+    id("com.diffplug.spotless") version "8.12.0"
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("net.ltgt.errorprone") version "5.2.0"
     id("org.springframework.boot") version "3.5.16" apply false
